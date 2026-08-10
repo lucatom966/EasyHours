@@ -1,0 +1,1398 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+<title>Zeiterfassung</title>
+<meta name="theme-color" content="#F5F6F8">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Zeiterfassung">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='22' fill='%233B5BDB'/%3E%3Ctext x='50' y='70' font-size='56' text-anchor='middle' fill='white' font-family='Arial,sans-serif' font-weight='bold'%3EZ%3C/text%3E%3C/svg%3E">
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+:root{
+  --bg:#F5F6F8;--surface:#FFFFFF;--border:#E7E9EE;--border-strong:#D1D5DB;
+  --text:#14161A;--text-muted:#6B7280;--text-faint:#9CA3AF;
+  --accent:#3B5BDB;--accent-soft:#EEF1FC;--accent-dark:#2F46B0;
+  --success:#16A34A;--success-soft:#EAF7EF;--warning:#D97706;--warning-soft:#FEF3E2;--danger:#DC2626;
+  --shadow-sm:0 1px 2px rgba(16,24,40,.04);
+  --shadow-md:0 4px 14px rgba(16,24,40,.06);
+  --header-bg:rgba(255,255,255,.85);
+  --donut-track:#EEF0F3;
+}
+:root[data-theme="dark"]{
+  --bg:#0F1115;--surface:#1A1D23;--border:#2A2E37;--border-strong:#3D424E;
+  --text:#F1F2F4;--text-muted:#9CA3AF;--text-faint:#6B7280;
+  --accent:#5B7FEF;--accent-soft:rgba(91,127,239,.18);--accent-dark:#7C97F5;
+  --success:#22C55E;--success-soft:rgba(34,197,94,.14);--warning:#F59E0B;--warning-soft:rgba(245,158,11,.14);--danger:#F87171;
+  --shadow-sm:0 1px 2px rgba(0,0,0,.35);
+  --shadow-md:0 4px 14px rgba(0,0,0,.4);
+  --header-bg:rgba(15,17,21,.85);
+  --donut-track:#2A2E37;
+}
+*{box-sizing:border-box;}
+body{margin:0;background:var(--bg);font-family:'Inter',ui-sans-serif,system-ui,sans-serif;color:var(--text);-webkit-font-smoothing:antialiased;}
+#app{display:flex;flex-direction:column;min-height:100vh;max-width:1180px;margin:0 auto;}
+main{flex:1;padding:26px 28px 48px;}
+.zb-header{display:flex;align-items:center;justify-content:space-between;gap:14px;flex-wrap:wrap;padding:14px 28px;background:var(--header-bg);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);border-bottom:1px solid var(--border);position:sticky;top:0;z-index:5;}
+.zb-title{font-size:16px;font-weight:800;color:var(--text);letter-spacing:-.01em;}
+.zb-nav{display:flex;gap:2px;background:var(--bg);padding:3px;border-radius:10px;}
+.zb-nav-btn{background:none;border:none;padding:7px 16px;font-size:13.5px;font-weight:600;color:var(--text-muted);cursor:pointer;border-radius:8px;transition:all .15s ease;font-family:inherit;}
+.zb-nav-btn:hover{color:var(--text);}
+.zb-nav-btn.active{background:var(--surface);color:var(--accent);box-shadow:var(--shadow-sm);}
+.zb-header-right{display:flex;align-items:center;gap:10px;}
+.zb-save-status{font-size:12px;color:var(--text-faint);}
+
+.zb-card{background:var(--surface);border:1px solid var(--border);border-radius:14px;box-shadow:var(--shadow-sm);transition:box-shadow .2s ease;}
+.zb-form-card{padding:24px;margin-bottom:22px;}
+.zb-form-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:18px;font-size:15px;font-weight:700;letter-spacing:-.01em;}
+.zb-grid2{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:18px;}
+.zb-row-inputs{display:flex;gap:8px;align-items:center;}
+.zb-pause{max-width:90px;}
+.zb-date-row,.zb-time-row{display:inline-flex;align-items:center;gap:3px;}
+.zb-sep{color:var(--text-faint);font-weight:600;}
+.zb-select-sm{width:auto;min-width:58px;padding:9px 6px;}
+.zb-select-month{width:auto;min-width:92px;padding:9px 6px;}
+.zb-cal-strip-wrap{display:flex;align-items:center;gap:8px;}
+.zb-cal-strip{display:flex;gap:6px;flex:1;overflow-x:auto;-webkit-overflow-scrolling:touch;padding-bottom:2px;}
+.zb-cal-day{flex:1;min-width:44px;display:flex;flex-direction:column;align-items:center;gap:4px;padding:10px 4px;border:1.5px solid var(--border);border-radius:11px;background:var(--surface);cursor:pointer;font-family:inherit;position:relative;transition:all .15s ease;}
+.zb-cal-day:hover{border-color:var(--border-strong);}
+.zb-cal-day.today{border-color:var(--accent);}
+.zb-cal-day.booked{background:var(--bg);}
+.zb-cal-day.booked .zb-cal-num{color:var(--text-muted);}
+.zb-cal-day.active{background:var(--accent);border-color:var(--accent);box-shadow:0 4px 10px rgba(59,91,219,.25);}
+.zb-cal-day.active .zb-cal-wd,.zb-cal-day.active .zb-cal-num{color:#fff;}
+.zb-cal-wd{font-size:10px;color:var(--text-faint);text-transform:uppercase;font-weight:700;letter-spacing:.03em;}
+.zb-cal-num{font-size:15px;font-weight:700;color:var(--text);}
+.zb-cal-dot{position:absolute;bottom:5px;width:4px;height:4px;border-radius:50%;background:var(--accent);}
+.zb-cal-day.active .zb-cal-dot{background:#fff;}
+.zb-time-arrow{color:var(--text-faint);margin:0 4px;}
+.zb-time-input{max-width:110px;text-align:center;font-variant-numeric:tabular-nums;}
+.zb-field{margin-bottom:18px;}
+.zb-label{display:block;font-size:12px;color:var(--text-muted);margin-bottom:8px;font-weight:600;text-transform:uppercase;letter-spacing:.03em;}
+.zb-input,.zb-select{background:var(--surface);border:1.5px solid var(--border);border-radius:9px;padding:9px 12px;font-size:13.5px;width:100%;font-family:inherit;color:var(--text);transition:border-color .15s ease,box-shadow .15s ease;}
+.zb-input:focus,.zb-select:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-soft);}
+.zb-hours-preview{font-size:14px;font-weight:700;color:var(--accent);white-space:nowrap;}
+.zb-error{font-size:12.5px;color:var(--danger);font-weight:500;margin-top:10px;}
+.zb-hint{font-size:12px;color:var(--text-faint);margin-top:8px;}
+
+.zb-seg{display:flex;flex-wrap:wrap;gap:8px;}
+.zb-seg-btn{border:1.5px solid var(--border);background:var(--surface);color:var(--text-muted);border-radius:9px;padding:8px 15px;font-size:13px;font-weight:600;cursor:pointer;transition:all .15s ease;font-family:inherit;}
+.zb-seg-btn:hover{border-color:var(--border-strong);}
+
+.zb-btn-primary{background:var(--accent);color:#fff;border:none;border-radius:9px;padding:10px 20px;font-size:13.5px;font-weight:600;cursor:pointer;font-family:inherit;transition:all .15s ease;display:inline-flex;align-items:center;gap:7px;box-shadow:0 1px 2px rgba(59,91,219,.25);}
+.zb-btn-primary:hover{background:var(--accent-dark);box-shadow:0 4px 10px rgba(59,91,219,.3);}
+.zb-btn-primary:disabled{opacity:.4;cursor:not-allowed;box-shadow:none;}
+.zb-btn-primary.sm{padding:8px 14px;font-size:12.5px;}
+.zb-btn-ghost{background:var(--surface);border:1.5px solid var(--border);color:var(--text);border-radius:9px;padding:8px 14px;font-size:13px;font-weight:500;cursor:pointer;font-family:inherit;transition:all .15s ease;display:inline-flex;align-items:center;gap:7px;}
+.zb-btn-ghost:hover{border-color:var(--border-strong);background:var(--bg);}
+.zb-btn-ghost.sm{padding:6px 12px;font-size:12px;}
+.zb-btn-ghost.danger{border-color:#FCA5A5;color:var(--danger);}
+.zb-iconbtn{background:transparent;border:none;cursor:pointer;padding:6px;border-radius:7px;color:var(--text-faint);display:inline-flex;transition:all .15s ease;}
+.zb-iconbtn:hover{background:var(--bg);color:var(--text);}
+.zb-iconbtn.danger:hover{color:var(--danger);}
+
+.zb-split-list{margin-bottom:10px;}
+.zb-split-row{display:flex;align-items:center;justify-content:space-between;padding:9px 13px;background:var(--bg);border-radius:9px;margin-bottom:6px;font-size:13px;}
+.zb-split-row .name{font-weight:600;}
+.zb-split-row .val{display:flex;align-items:center;gap:10px;}
+.zb-split-add{display:flex;gap:8px;align-items:center;flex-wrap:wrap;}
+.zb-split-add .zb-select{max-width:220px;}
+.zb-split-add .zb-input{max-width:90px;}
+.zb-split-summary{margin-top:10px;font-size:12.5px;font-weight:600;}
+.zb-split-summary.ok{color:var(--success);}
+.zb-split-summary.warn{color:var(--warning);}
+
+.zb-section-head{display:flex;justify-content:space-between;align-items:center;margin:0 0 12px;font-size:12.5px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:.04em;}
+.zb-table-wrap{overflow-x:auto;}
+table.zb-table{border-collapse:collapse;width:100%;}
+.zb-table thead tr{background:var(--bg);}
+.zb-table th{text-align:left;font-size:11px;text-transform:uppercase;letter-spacing:.04em;color:var(--text-faint);font-weight:700;padding:11px 14px;border-bottom:1px solid var(--border);white-space:nowrap;}
+.zb-table td{padding:12px 14px;font-size:13px;border-bottom:1px solid var(--border);white-space:nowrap;color:var(--text);}
+.zb-table tr:last-child td{border-bottom:none;}
+.zb-table tr:hover td{background:var(--accent-soft);}
+.num{font-variant-numeric:tabular-nums;}
+.strong{font-weight:700;}
+.muted{color:var(--text-muted);}
+.faint{color:var(--text-faint);}
+.accent{color:var(--accent);}
+.ellipsis{max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap!important;}
+.actions{text-align:right;}
+.total-label{text-align:right;color:var(--text-muted);font-size:12px;font-weight:700;}
+.zb-empty{padding:36px;text-align:center;color:var(--text-faint);font-size:13px;}
+.zb-empty-big{padding:48px;text-align:center;color:var(--text-faint);font-size:13px;}
+.zb-badge{display:inline-flex;align-items:center;padding:3px 10px;border-radius:7px;font-size:11.5px;font-weight:600;border:1px solid;white-space:nowrap;}
+.zb-badge-row{display:flex;flex-wrap:wrap;gap:5px;}
+
+.zb-week-toolbar{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:20px;}
+.zb-week-nav{display:flex;align-items:center;gap:8px;flex-wrap:wrap;}
+.zb-week-badge{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:8px 16px;text-align:center;min-width:150px;box-shadow:var(--shadow-sm);}
+.zb-week-kw{font-size:13px;font-weight:700;}
+.zb-week-range{font-size:11.5px;color:var(--text-faint);}
+
+.zb-chart-empty{height:140px;display:flex;align-items:center;justify-content:center;color:var(--text-faint);font-size:13px;text-align:center;}
+.zb-donut-wrap{display:flex;align-items:center;gap:24px;flex-wrap:wrap;justify-content:center;}
+.zb-donut{position:relative;flex:none;}
+.zb-donut-center{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;}
+.zb-donut-total{font-size:22px;font-weight:800;color:var(--text);letter-spacing:-.02em;}
+.zb-donut-unit{font-size:10.5px;color:var(--text-faint);margin-top:1px;}
+.zb-legend{display:flex;flex-direction:column;gap:9px;flex:1;min-width:160px;}
+.zb-legend-row{display:flex;align-items:center;gap:9px;font-size:12.5px;}
+.zb-legend-dot{width:9px;height:9px;border-radius:50%;flex:none;}
+.zb-legend-name{flex:1;font-weight:500;color:var(--text);}
+.zb-legend-val{color:var(--text-muted);font-weight:600;white-space:nowrap;}
+.zb-trend-bars{display:flex;align-items:flex-end;gap:10px;height:150px;padding-top:6px;}
+.zb-trend-col{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;height:100%;gap:6px;}
+.zb-trend-bar{width:100%;max-width:34px;background:linear-gradient(180deg,var(--accent),var(--accent-dark));border-radius:7px 7px 2px 2px;min-height:4px;transition:opacity .15s ease;}
+.zb-trend-bar:hover{opacity:.75;}
+.zb-trend-val{font-size:11px;color:var(--text-muted);font-weight:700;}
+.zb-trend-label{font-size:10.5px;color:var(--text-faint);}
+.zb-loading{height:60vh;display:flex;align-items:center;justify-content:center;color:var(--text-faint);font-size:13px;}
+.zb-folder-card{padding:14px 18px;margin-bottom:18px;display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;}
+.zb-folder-info{display:flex;flex-direction:column;gap:3px;min-width:0;}
+.zb-folder-label{font-size:11px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:.04em;}
+.zb-folder-path{font-size:12.5px;color:var(--text);font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:420px;}
+.zb-folder-path.unset{color:var(--text-faint);font-weight:500;}
+.zb-folder-actions{display:flex;gap:8px;flex-wrap:wrap;}
+.zb-toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:var(--text);color:var(--surface);padding:10px 18px;border-radius:9px;font-size:13px;font-weight:600;box-shadow:var(--shadow-md);z-index:50;max-width:90vw;text-align:center;}
+
+/* ---------- Dashboard: individuelle Widgets ---------- */
+.zb-dash-toolbar{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:18px;}
+.zb-dash-hint{font-size:12.5px;color:var(--text-muted);}
+.zb-dash-toolbar-actions{display:flex;gap:8px;}
+.zb-widget-picker{padding:18px 20px;margin-bottom:18px;}
+.zb-widget-picker-head{font-size:13.5px;font-weight:700;margin-bottom:4px;}
+.zb-widget-picker-sub{font-size:12px;color:var(--text-faint);margin-bottom:14px;}
+.zb-wp-cat{font-size:11px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:.04em;margin:16px 0 8px;}
+.zb-wp-cat:first-of-type{margin-top:0;}
+.zb-wp-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:8px;}
+.zb-wp-item{text-align:left;background:var(--bg);border:1.5px solid var(--border);border-radius:10px;padding:11px 13px;cursor:pointer;font-family:inherit;transition:all .15s ease;display:flex;flex-direction:column;gap:4px;}
+.zb-wp-item:hover{border-color:var(--accent);background:var(--accent-soft);}
+.zb-wp-name{font-size:12.5px;font-weight:700;color:var(--text);}
+.zb-wp-desc{font-size:11px;color:var(--text-faint);line-height:1.4;}
+.zb-dash-grid{display:grid;grid-template-columns:repeat(4,1fr);grid-auto-flow:row dense;gap:16px;align-items:start;}
+.zb-widget{background:var(--surface);border:1px solid var(--border);border-radius:14px;box-shadow:var(--shadow-sm);overflow:hidden;}
+.zb-widget.wsize-s{grid-column:span 1;}
+.zb-widget.wsize-m{grid-column:span 2;}
+.zb-widget.wsize-l{grid-column:span 4;}
+.zb-widget-head{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:11px 14px;border-bottom:1px solid var(--border);flex-wrap:wrap;background:var(--bg);}
+.zb-widget-title{font-size:12px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:.03em;}
+.zb-widget-controls{display:flex;align-items:center;gap:6px;flex-wrap:wrap;}
+.zb-widget-body{padding:18px;}
+.zb-mini-select{width:auto;padding:5px 7px;font-size:11px;border-radius:7px;}
+.zb-size-group{display:flex;gap:2px;background:var(--surface);border:1px solid var(--border);border-radius:7px;padding:2px;}
+.zb-size-btn{border:none;background:none;font-size:10px;font-weight:700;color:var(--text-faint);padding:4px 7px;border-radius:5px;cursor:pointer;font-family:inherit;}
+.zb-size-btn.active{background:var(--accent);color:#fff;}
+.zb-move-group{display:flex;gap:2px;background:var(--surface);border:1px solid var(--border);border-radius:7px;padding:2px;}
+.zb-move-btn{border:none;background:none;color:var(--text-muted);padding:4px 6px;border-radius:5px;cursor:pointer;display:inline-flex;font-family:inherit;}
+.zb-move-btn:hover:not(:disabled){background:var(--bg);color:var(--text);}
+.zb-move-btn:disabled{opacity:.3;cursor:not-allowed;}
+.zb-kpi-body{--kpi-c:var(--accent);}
+.zb-kpi-value{font-size:26px;font-weight:800;color:var(--kpi-c);font-variant-numeric:tabular-nums;letter-spacing:-.02em;}
+.zb-kpi-sub{font-size:11.5px;color:var(--text-faint);margin-top:7px;line-height:1.4;}
+.zb-inline-setting{margin-top:12px;display:flex;align-items:center;gap:8px;font-size:11.5px;color:var(--text-muted);font-weight:600;}
+.zb-mini-input{width:74px;padding:6px 8px;font-size:12.5px;}
+.zb-gauge-wrap{position:relative;width:180px;margin:0 auto;text-align:center;}
+.zb-gauge-value{position:absolute;top:44px;left:0;right:0;font-size:25px;font-weight:800;letter-spacing:-.02em;}
+.zb-gauge-sub{margin-top:10px;font-size:12.5px;color:var(--text-muted);font-weight:700;}
+.zb-gauge-sub2{font-size:11.5px;color:var(--text-faint);margin-top:3px;}
+.zb-gauge-foot{display:flex;justify-content:center;}
+.zb-leaderboard{display:flex;flex-direction:column;gap:11px;}
+.zb-lb-row{display:flex;align-items:center;gap:10px;font-size:13px;}
+.zb-lb-rank{width:24px;text-align:center;font-weight:700;flex:none;font-size:13px;}
+.zb-lb-name{width:108px;flex:none;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.zb-lb-bar-track{flex:1;height:8px;background:var(--donut-track);border-radius:999px;overflow:hidden;}
+.zb-lb-bar-fill{height:100%;border-radius:999px;}
+.zb-lb-val{width:58px;text-align:right;flex:none;font-weight:700;font-size:12.5px;}
+.zb-hm-wrap{display:flex;flex-direction:column;}
+.zb-hm-grid{display:flex;gap:3px;overflow-x:auto;padding-bottom:4px;}
+.zb-hm-col{display:flex;flex-direction:column;gap:3px;}
+.zb-hm-cell{width:11px;height:11px;border-radius:3px;flex:none;}
+.zb-hm-l0{background:var(--donut-track);}
+.zb-hm-l1{background:color-mix(in srgb, var(--accent) 28%, var(--donut-track));}
+.zb-hm-l2{background:color-mix(in srgb, var(--accent) 55%, var(--donut-track));}
+.zb-hm-l3{background:color-mix(in srgb, var(--accent) 80%, var(--donut-track));}
+.zb-hm-l4{background:var(--accent);}
+.zb-hm-future{background:transparent;border:1px dashed var(--border);}
+.zb-hm-legend{display:flex;align-items:center;gap:4px;font-size:11px;color:var(--text-faint);margin-top:12px;flex-wrap:wrap;}
+.zb-hm-legend .zb-hm-cell{width:10px;height:10px;}
+
+html{-webkit-text-size-adjust:100%;}
+@media (max-width:900px){
+  .zb-dash-grid{grid-template-columns:repeat(2,1fr);}
+  .zb-widget.wsize-s{grid-column:span 1;}
+  .zb-widget.wsize-m{grid-column:span 1;}
+  .zb-widget.wsize-l{grid-column:span 2;}
+}
+@media (max-width:640px){
+  main{padding:18px 16px 40px;}
+  .zb-header{padding:12px 16px;}
+  .zb-grid2{grid-template-columns:1fr;}
+  .zb-form-card,.zb-chart-card{padding:16px;}
+  .zb-trend-bars{height:120px;}
+  .zb-donut-wrap{gap:16px;}
+  .zb-table th,.zb-table td{padding:9px 10px;}
+  .zb-folder-path{max-width:220px;}
+  .zb-dash-grid{grid-template-columns:1fr;}
+  .zb-widget{grid-column:1/-1 !important;}
+}
+</style>
+</head>
+<body>
+<div id="app"></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script>
+const STORAGE_KEY='zb-day-data-v1';
+const LOCATIONS=['Chur','Zürich-Flughafen','St. Gallen','Bern','Homeoffice'];
+const TYPES=['Militär','Ferien','Kompens','Krank','OPS','LER','CR','IC','SR'];
+const LOCATION_COLORS={'Chur':'#3B5BDB','Zürich-Flughafen':'#0EA5A5','St. Gallen':'#7C5CFC','Bern':'#D97706','Homeoffice':'#64748B'};
+const TYPE_COLORS={'Militär':'#475569','Ferien':'#16A34A','Kompens':'#0EA5A5','Krank':'#DC2626','OPS':'#3B5BDB','LER':'#7C5CFC','CR':'#D97706','IC':'#DB2777','SR':'#0284C7'};
+
+let entries=[];
+let activeTab='dashboard';
+let editingId=null;
+let formError='';
+let saving=false;
+function defaultForm(){return {date:todayISO(),location:'',arrival:'08:00',departure:'17:00',pause:60,remark:'',splits:[]};}
+let form=defaultForm();
+let selectedWeek;
+let calendarViewWeek;
+let theme='light';
+let exportDirHandle=null;
+let exportDirName='';
+let toastTimer=null;
+
+/* Dashboard-Widget-Zustand */
+let widgets=[];
+let dashboardEditMode=false;
+
+function loadTheme(){
+  try{ const t=localStorage.getItem('zb-theme'); if(t==='dark'||t==='light') theme=t; }catch(e){}
+  document.documentElement.setAttribute('data-theme',theme);
+}
+function toggleTheme(){
+  theme=theme==='dark'?'light':'dark';
+  try{ localStorage.setItem('zb-theme',theme); }catch(e){}
+  document.documentElement.setAttribute('data-theme',theme);
+  renderApp();
+}
+
+function load(){
+  try{
+    const raw=localStorage.getItem(STORAGE_KEY);
+    if(raw){
+      const parsed=JSON.parse(raw);
+      entries=parsed.entries||[];
+    }
+  }catch(e){}
+}
+function save(){
+  saving=true; updateSaveIndicator();
+  try{ localStorage.setItem(STORAGE_KEY, JSON.stringify({entries})); }catch(e){}
+  saving=false; updateSaveIndicator();
+}
+function updateSaveIndicator(){
+  const el=document.getElementById('save-status');
+  if(el) el.textContent = saving ? 'Speichert…' : 'Gespeichert';
+}
+function showToast(msg,ms){
+  ms=ms||3200;
+  let el=document.getElementById('zb-toast');
+  if(!el){
+    el=document.createElement('div');
+    el.id='zb-toast';el.className='zb-toast';
+    document.body.appendChild(el);
+  }
+  el.textContent=msg;
+  el.style.display='block';
+  if(toastTimer) clearTimeout(toastTimer);
+  toastTimer=setTimeout(()=>{el.style.display='none';},ms);
+}
+
+/* ---------- Zielordner: IndexedDB-Speicher für den FileSystemDirectoryHandle ---------- */
+const IDB_NAME='zb-fs-handles';
+const IDB_STORE='handles';
+const IDB_KEY='exportDir';
+function idbOpen(){
+  return new Promise((resolve,reject)=>{
+    const req=indexedDB.open(IDB_NAME,1);
+    req.onupgradeneeded=()=>{req.result.createObjectStore(IDB_STORE);};
+    req.onsuccess=()=>resolve(req.result);
+    req.onerror=()=>reject(req.error);
+  });
+}
+async function idbSet(key,val){
+  const db=await idbOpen();
+  return new Promise((resolve,reject)=>{
+    const tx=db.transaction(IDB_STORE,'readwrite');
+    tx.objectStore(IDB_STORE).put(val,key);
+    tx.oncomplete=()=>resolve();
+    tx.onerror=()=>reject(tx.error);
+  });
+}
+async function idbGet(key){
+  const db=await idbOpen();
+  return new Promise((resolve,reject)=>{
+    const tx=db.transaction(IDB_STORE,'readonly');
+    const req=tx.objectStore(IDB_STORE).get(key);
+    req.onsuccess=()=>resolve(req.result||null);
+    req.onerror=()=>reject(req.error);
+  });
+}
+function fsApiSupported(){
+  return typeof window.showDirectoryPicker==='function';
+}
+async function verifyDirPermission(handle,requestIfNeeded){
+  if(!handle) return false;
+  const opts={mode:'readwrite'};
+  try{
+    if((await handle.queryPermission(opts))==='granted') return true;
+    if(requestIfNeeded && (await handle.requestPermission(opts))==='granted') return true;
+  }catch(e){}
+  return false;
+}
+async function restoreExportDir(){
+  if(!fsApiSupported()) return;
+  try{
+    const handle=await idbGet(IDB_KEY);
+    if(handle){
+      exportDirHandle=handle;
+      exportDirName=handle.name;
+      renderApp();
+    }
+  }catch(e){}
+}
+async function chooseExportFolder(){
+  if(!fsApiSupported()){
+    alert('Diese Funktion (Zielordner wählen) wird von deinem Browser nicht unterstützt. Bitte Chrome oder Edge verwenden. Der Export läuft in diesem Browser weiterhin als normaler Download.');
+    return;
+  }
+  try{
+    const handle=await window.showDirectoryPicker({mode:'readwrite'});
+    const ok=await verifyDirPermission(handle,true);
+    if(!ok){ alert('Zugriff auf den Ordner wurde nicht erlaubt.'); return; }
+    exportDirHandle=handle;
+    exportDirName=handle.name;
+    await idbSet(IDB_KEY,handle);
+    showToast('Zielordner "'+handle.name+'" gespeichert. Exporte werden ab jetzt direkt dort abgelegt.');
+    renderApp();
+  }catch(e){
+    if(e && e.name==='AbortError') return;
+  }
+}
+function clearExportFolder(){
+  exportDirHandle=null;exportDirName='';
+  idbSet(IDB_KEY,null).catch(()=>{});
+  renderApp();
+}
+async function writeWorkbookToExportDir(wb,filename){
+  if(!exportDirHandle) return false;
+  const ok=await verifyDirPermission(exportDirHandle,true);
+  if(!ok){ showToast('Zugriff auf den Zielordner fehlt. Bitte Ordner erneut wählen.'); return false; }
+  try{
+    const buf=XLSX.write(wb,{bookType:'xlsx',type:'array'});
+    const fileHandle=await exportDirHandle.getFileHandle(filename,{create:true});
+    const writable=await fileHandle.createWritable();
+    await writable.write(buf);
+    await writable.close();
+    return true;
+  }catch(e){
+    showToast('Speichern in "'+exportDirName+'" fehlgeschlagen: '+(e&&e.message?e.message:e));
+    return false;
+  }
+}
+
+const WEEKDAYS=['Montag','Dienstag','Mittwoch','Donnerstag','Freitag','Samstag','Sonntag'];
+const WEEKDAYS_SHORT=['Mo','Di','Mi','Do','Fr','Sa','So'];
+function todayISO(){const d=new Date();return new Date(d.getTime()-d.getTimezoneOffset()*60000).toISOString().slice(0,10);}
+function toDate(iso){return new Date(iso+'T00:00:00');}
+function formatDateDE(iso){const d=toDate(iso);return `${String(d.getDate()).padStart(2,'0')}. ${String(d.getMonth()+1).padStart(2,'0')}. ${d.getFullYear()}`;}
+function weekdayName(iso){return WEEKDAYS[(toDate(iso).getDay()+6)%7];}
+function weekdayShort(iso){return WEEKDAYS_SHORT[(toDate(iso).getDay()+6)%7];}
+function isoWeekInfo(iso){
+  const d=toDate(iso);d.setHours(0,0,0,0);
+  d.setDate(d.getDate()+3-((d.getDay()+6)%7));
+  const week1=new Date(d.getFullYear(),0,4);
+  const week=1+Math.round(((d-week1)/86400000-3+((week1.getDay()+6)%7))/7);
+  return {year:d.getFullYear(),week};
+}
+function weekKeyOf(iso){const {year,week}=isoWeekInfo(iso);return `${year}-W${String(week).padStart(2,'0')}`;}
+function mondayOfWeek(year,week){
+  const simple=new Date(year,0,1+(week-1)*7);
+  const dow=simple.getDay();
+  const monday=new Date(simple);
+  if(dow<=4) monday.setDate(simple.getDate()-dow+1); else monday.setDate(simple.getDate()+8-dow);
+  return monday;
+}
+function weekRangeLabel(weekKey){
+  const [y,w]=weekKey.split('-W').map(Number);
+  const mon=mondayOfWeek(y,w);const sun=new Date(mon);sun.setDate(mon.getDate()+6);
+  const fmt=d=>`${String(d.getDate()).padStart(2,'0')}. ${String(d.getMonth()+1).padStart(2,'0')}.`;
+  return `${fmt(mon)}–${fmt(sun)} ${y}`;
+}
+function shiftWeekKey(weekKey,delta){
+  const [y,w]=weekKey.split('-W').map(Number);
+  const mon=mondayOfWeek(y,w);mon.setDate(mon.getDate()+delta*7);
+  const local=new Date(mon.getTime()-mon.getTimezoneOffset()*60000);
+  return weekKeyOf(local.toISOString().slice(0,10));
+}
+function calcHours(arrival,departure,pauseMin){
+  if(!arrival||!departure) return 0;
+  const [ah,am]=arrival.split(':').map(Number);const [dh,dm]=departure.split(':').map(Number);
+  let mins=(dh*60+dm)-(ah*60+am);if(mins<0) mins+=24*60;
+  mins-=Number(pauseMin)||0;
+  return Math.max(0,Math.round((mins/60)*100)/100);
+}
+function genId(){return 'e_'+Date.now().toString(36)+Math.random().toString(36).slice(2,8);}
+function esc(s){return String(s??'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
+function entriesByWeek(){
+  const map={};
+  for(const e of entries){const wk=weekKeyOf(e.date);(map[wk]=map[wk]||[]).push(e);}
+  Object.values(map).forEach(list=>list.sort((a,b)=>a.date.localeCompare(b.date)));
+  return map;
+}
+function aggregateByLocation(list){
+  list=list||entries;
+  const map={};list.forEach(e=>{map[e.location]=(map[e.location]||0)+e.hours;});
+  return Object.entries(map).map(([name,hours])=>({name,hours:Math.round(hours*100)/100})).sort((a,b)=>b.hours-a.hours);
+}
+function aggregateByType(list){
+  list=list||entries;
+  const map={};list.forEach(e=>e.splits.forEach(s=>{map[s.type]=(map[s.type]||0)+s.hours;}));
+  return Object.entries(map).map(([name,hours])=>({name,hours:Math.round(hours*100)/100})).sort((a,b)=>b.hours-a.hours);
+}
+function isoOf(d){const local=new Date(d.getTime()-d.getTimezoneOffset()*60000);return local.toISOString().slice(0,10);}
+const RANGE_STEPS=['day','week','month','year'];
+const RANGE_LABELS={day:'Tag',week:'Woche',month:'Monat',year:'Jahr'};
+const MONTHS_FULL=['Januar','Februar','März','April','Mai','Juni','Juli','August','September','Oktober','November','Dezember'];
+function getRangeBounds(range,refIso){
+  const ref=toDate(refIso);
+  if(range==='day') return {start:refIso,end:refIso};
+  if(range==='week'){
+    const wk=weekKeyOf(refIso);const [y,w]=wk.split('-W').map(Number);
+    const mon=mondayOfWeek(y,w);const sun=new Date(mon);sun.setDate(mon.getDate()+6);
+    return {start:isoOf(mon),end:isoOf(sun)};
+  }
+  if(range==='month'){
+    const y=ref.getFullYear(),m=ref.getMonth();
+    return {start:isoOf(new Date(y,m,1)),end:isoOf(new Date(y,m+1,0))};
+  }
+  const y=ref.getFullYear();
+  return {start:`${y}-01-01`,end:`${y}-12-31`};
+}
+function entriesInRange(range){
+  const {start,end}=getRangeBounds(range,todayISO());
+  return entries.filter(e=>e.date>=start && e.date<=end);
+}
+function previousRangeBounds(range){
+  const today=todayISO();
+  if(range==='day'){ const d=toDate(today); d.setDate(d.getDate()-1); const iso=isoOf(d); return {start:iso,end:iso}; }
+  if(range==='week'){
+    const prevWk=shiftWeekKey(weekKeyOf(today),-1);
+    const [y,w]=prevWk.split('-W').map(Number);
+    const mon=mondayOfWeek(y,w);const sun=new Date(mon);sun.setDate(mon.getDate()+6);
+    return {start:isoOf(mon),end:isoOf(sun)};
+  }
+  if(range==='month'){
+    const d=toDate(today);
+    const prevM=new Date(d.getFullYear(),d.getMonth()-1,1);
+    return {start:isoOf(prevM),end:isoOf(new Date(prevM.getFullYear(),prevM.getMonth()+1,0))};
+  }
+  const y=toDate(today).getFullYear()-1;
+  return {start:`${y}-01-01`,end:`${y}-12-31`};
+}
+function entriesInPreviousRange(range){
+  const {start,end}=previousRangeBounds(range);
+  return entries.filter(e=>e.date>=start && e.date<=end);
+}
+function rangeLabelText(range){
+  const {start}=getRangeBounds(range,todayISO());
+  if(range==='day') return formatDateDE(start);
+  if(range==='week') return weekRangeLabel(weekKeyOf(start));
+  if(range==='month'){const d=toDate(start);return `${MONTHS_FULL[d.getMonth()]} ${d.getFullYear()}`;}
+  return String(toDate(start).getFullYear());
+}
+function longestDay(list){
+  if(!list.length) return null;
+  return list.reduce((max,e)=>e.hours>max.hours?e:max,list[0]);
+}
+const ABSENCE_TYPES=['Ferien','Krank','Militär','Kompens'];
+function absenceDaysCount(list){
+  return list.filter(e=>e.splits.some(s=>ABSENCE_TYPES.includes(s.type))).length;
+}
+function avgWindow(list){
+  if(!list.length) return null;
+  const toMin=t=>{const [h,m]=t.split(':').map(Number);return h*60+m;};
+  const avgA=Math.round(list.reduce((s,e)=>s+toMin(e.arrival),0)/list.length);
+  const avgD=Math.round(list.reduce((s,e)=>s+toMin(e.departure),0)/list.length);
+  const fmt=m=>String(Math.floor(m/60)).padStart(2,'0')+':'+String(m%60).padStart(2,'0');
+  return `${fmt(avgA)}–${fmt(avgD)}`;
+}
+function currentStreak(){
+  if(!entries.length) return 0;
+  const dates=new Set(entries.map(e=>e.date));
+  let cursor=toDate(todayISO());
+  let iso=isoOf(cursor);
+  if(!dates.has(iso)){ cursor.setDate(cursor.getDate()-1); iso=isoOf(cursor); }
+  let streak=0;
+  while(dates.has(iso)){ streak++; cursor.setDate(cursor.getDate()-1); iso=isoOf(cursor); }
+  return streak;
+}
+
+function icon(name,size){
+  size=size||16;
+  const c=`width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"`;
+  const p={
+    plus:'<path d="M12 5v14M5 12h14"/>',
+    x:'<path d="M18 6 6 18M6 6l12 12"/>',
+    check:'<path d="M20 6 9 17l-5-5"/>',
+    chevronLeft:'<path d="M15 18l-6-6 6-6"/>',
+    chevronRight:'<path d="M9 18l6-6-6-6"/>',
+    arrowUp:'<path d="M12 19V6M6 12l6-6 6 6"/>',
+    arrowDown:'<path d="M12 5v13M18 12l-6 6-6-6"/>',
+    trash:'<path d="M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2m3 0-1 14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2L4 6h16z"/>',
+    pencil:'<path d="M12 20h9M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/>',
+    download:'<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"/>',
+    folder:'<path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7z"/>',
+    sun:'<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"/>',
+    moon:'<path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79Z"/>'
+  };
+  return `<svg ${c}>${p[name]||''}</svg>`;
+}
+function locBadge(name){
+  const c=LOCATION_COLORS[name]||'#64748B';
+  return `<span class="zb-badge" style="background:${c}14;color:${c};border-color:${c}33">${esc(name)}</span>`;
+}
+function typeBadge(name,hours,ref){
+  const c=TYPE_COLORS[name]||'#64748B';
+  const refPart = ref ? ` (${esc(ref)})` : '';
+  return `<span class="zb-badge" style="background:${c}14;color:${c};border-color:${c}33">${esc(name)}${refPart}${hours!=null?` · ${hours}h`:''}</span>`;
+}
+
+function renderCalendarStrip(){
+  const [y,w]=calendarViewWeek.split('-W').map(Number);
+  const mon=mondayOfWeek(y,w);
+  const days=[];
+  for(let i=0;i<7;i++){
+    const d=new Date(mon);d.setDate(mon.getDate()+i);
+    const local=new Date(d.getTime()-d.getTimezoneOffset()*60000);
+    days.push(local.toISOString().slice(0,10));
+  }
+  const todayIso=todayISO();
+  return `<div class="zb-cal-strip-wrap">
+    <button class="zb-iconbtn" data-action="cal-prev">${icon('chevronLeft',16)}</button>
+    <div class="zb-cal-strip">
+      ${days.map((iso,i)=>{
+        const active=iso===form.date, isToday=iso===todayIso, hasEntry=entries.some(e=>e.date===iso);
+        return `<button class="zb-cal-day ${active?'active':''} ${isToday?'today':''} ${hasEntry&&!active?'booked':''}" data-action="cal-pick" data-date="${iso}">
+          <span class="zb-cal-wd">${WEEKDAYS_SHORT[i]}</span>
+          <span class="zb-cal-num">${String(toDate(iso).getDate()).padStart(2,'0')}</span>
+          ${hasEntry?'<span class="zb-cal-dot"></span>':''}
+        </button>`;
+      }).join('')}
+    </div>
+    <button class="zb-iconbtn" data-action="cal-next">${icon('chevronRight',16)}</button>
+  </div>`;
+}
+function parseTimeInput(raw){
+  if(!raw) return null;
+  let s=raw.trim().replace(/[.\s]/g,':').replace(/[^0-9:]/g,'');
+  if(!s) return null;
+  let h,m;
+  if(s.includes(':')){
+    const parts=s.split(':');
+    h=parseInt(parts[0]||'0',10); m=parseInt(parts[1]||'0',10);
+  }else if(s.length<=2){
+    h=parseInt(s,10); m=0;
+  }else{
+    m=parseInt(s.slice(-2),10); h=parseInt(s.slice(0,-2)||'0',10);
+  }
+  if(isNaN(h)||isNaN(m)) return null;
+  h=Math.max(0,Math.min(23,h)); m=Math.max(0,Math.min(59,m));
+  return String(h).padStart(2,'0')+':'+String(m).padStart(2,'0');
+}
+function onArrivalChange(el){
+  const parsed=parseTimeInput(el.value);
+  if(parsed){form.arrival=parsed;el.value=parsed;}else{el.value=form.arrival;}
+  updateTimeCalcs();
+}
+function onDepartureChange(el){
+  const parsed=parseTimeInput(el.value);
+  if(parsed){form.departure=parsed;el.value=parsed;}else{el.value=form.departure;}
+  updateTimeCalcs();
+}
+function syncFormFromDOM(){
+  const p=document.getElementById('f-pause');if(p) form.pause=p.value;
+  const r=document.getElementById('f-remark');if(r) form.remark=r.value;
+}
+function updateTimeCalcs(){
+  const p=document.getElementById('f-pause').value;
+  const total=calcHours(form.arrival,form.departure,p);
+  const prevEl=document.getElementById('hours-preview');
+  if(prevEl) prevEl.textContent='Arbeitszeit: '+total+' Std.';
+  const splitSum=Math.round(form.splits.reduce((s,x)=>s+x.hours,0)*100)/100;
+  const sumEl=document.getElementById('split-summary');
+  if(sumEl){
+    const diff=Math.round((total-splitSum)*100)/100;
+    sumEl.textContent='Aufgeteilt: '+splitSum+' von '+total+' Std.'+(diff!==0?(diff>0?` — noch offen: ${diff} Std.`:` — ${Math.abs(diff)} Std. zu viel`):' — passt genau');
+    sumEl.className='zb-split-summary '+(diff===0?'ok':'warn');
+  }
+}
+
+function onDateChange(newDate){
+  const existing=entries.find(e=>e.date===newDate);
+  if(existing){
+    form={date:existing.date,location:existing.location,arrival:existing.arrival,departure:existing.departure,pause:existing.pause,remark:existing.remark,splits:existing.splits.map(s=>({...s}))};
+    editingId=existing.id;
+  }else{
+    form=defaultForm();
+    form.date=newDate;
+    editingId=null;
+  }
+  calendarViewWeek=weekKeyOf(newDate);
+  formError='';
+  renderApp();
+}
+function resetForm(){form=defaultForm();editingId=null;formError='';calendarViewWeek=weekKeyOf(form.date);}
+function submitEntry(){
+  syncFormFromDOM();
+  const {date,location,arrival,departure,pause,remark,splits}=form;
+  if(!date||!location||!arrival||!departure){formError='Bitte Datum, Standort sowie Kommen/Gehen ausfüllen.';renderApp();return;}
+  const hours=calcHours(arrival,departure,pause);
+  if(hours<=0){formError='Die berechnete Arbeitszeit ist 0 Std. Bitte Zeiten prüfen.';renderApp();return;}
+  formError='';
+  const cleanSplits=splits.filter(s=>s.type&&Number(s.hours)>0);
+  const existing=entries.find(e=>e.date===date && e.id!==editingId);
+  const targetId=editingId||(existing?existing.id:genId());
+  const newEntry={id:targetId,date,location,arrival,departure,pause:Number(pause)||0,remark,hours,splits:cleanSplits};
+  entries=entries.filter(e=>e.id!==targetId);
+  entries.push(newEntry);
+  save();
+  resetForm();renderApp();
+  if(toDate(date).getDay()===5){
+    exportWeek(weekKeyOf(date));
+  }
+}
+function startEdit(id){
+  const e=entries.find(x=>x.id===id);if(!e) return;
+  form={date:e.date,location:e.location,arrival:e.arrival,departure:e.departure,pause:e.pause,remark:e.remark,splits:e.splits.map(s=>({...s}))};
+  editingId=id;formError='';activeTab='erfassen';calendarViewWeek=weekKeyOf(e.date);renderApp();
+}
+function deleteEntry(id){
+  entries=entries.filter(e=>e.id!==id);save();
+  if(editingId===id) resetForm();
+  renderApp();
+}
+function selectLocation(loc){
+  syncFormFromDOM();
+  form.location=loc;
+  renderApp();
+}
+function addSplit(){
+  syncFormFromDOM();
+  const typeEl=document.getElementById('split-type');
+  const refEl=document.getElementById('split-ref');
+  const hoursEl=document.getElementById('split-hours');
+  const type=typeEl?typeEl.value:'';
+  const ref=refEl?refEl.value.trim():'';
+  const hours=hoursEl?parseFloat(hoursEl.value):0;
+  if(!type||!hours||hours<=0) return;
+  form.splits.push({id:genId(),type,ref,hours:Math.round(hours*100)/100});
+  renderApp();
+}
+function deleteSplit(id){
+  syncFormFromDOM();
+  form.splits=form.splits.filter(s=>s.id!==id);
+  renderApp();
+}
+function exportBackup(){
+  const data=JSON.stringify({entries,exportedAt:new Date().toISOString()},null,2);
+  const blob=new Blob([data],{type:'application/json'});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement('a');
+  a.href=url;a.download=`zeiterfassung_backup_${todayISO()}.json`;
+  document.body.appendChild(a);a.click();document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+function importBackup(file){
+  if(!file) return;
+  const reader=new FileReader();
+  reader.onload=function(e){
+    try{
+      const parsed=JSON.parse(e.target.result);
+      const incoming=Array.isArray(parsed)?parsed:parsed.entries;
+      if(!Array.isArray(incoming)) throw new Error('invalid');
+      if(!confirm(`${incoming.length} Einträge aus dem Backup importieren? Bestehende Einträge mit gleichem Datum werden überschrieben.`)) return;
+      const byDate={};
+      entries.forEach(en=>{byDate[en.date]=en;});
+      incoming.forEach(en=>{if(en && en.date) byDate[en.date]=en;});
+      entries=Object.values(byDate);
+      save();renderApp();
+      alert('Backup importiert.');
+    }catch(err){
+      alert('Diese Datei konnte nicht gelesen werden. Bitte eine gültige Backup-Datei wählen.');
+    }
+  };
+  reader.readAsText(file);
+}
+async function exportWeek(weekKey){
+  const list=(entriesByWeek()[weekKey])||[];
+  if(!list.length) return;
+  if(typeof XLSX==='undefined'){alert('Die Excel-Bibliothek konnte nicht geladen werden. Bitte Internetverbindung prüfen und erneut versuchen.');return;}
+  const rows=list.map(e=>({
+    Datum:formatDateDE(e.date),Wochentag:weekdayName(e.date),Standort:e.location,
+    Kommen:e.arrival,Gehen:e.departure,'Mittag (Min)':e.pause,Arbeitszeit:e.hours,
+    Aufteilung:e.splits.map(s=>`${s.type}${s.ref?' ('+s.ref+')':''} ${s.hours}h`).join(', '),Bemerkung:e.remark||''
+  }));
+  const total=Math.round(list.reduce((s,e)=>s+e.hours,0)*100)/100;
+  rows.push({Datum:'',Wochentag:'',Standort:'',Kommen:'',Gehen:'','Mittag (Min)':'Total',Arbeitszeit:total,Aufteilung:'',Bemerkung:''});
+  const ws=XLSX.utils.json_to_sheet(rows);
+  ws['!cols']=[{wch:12},{wch:12},{wch:16},{wch:8},{wch:8},{wch:10},{wch:11},{wch:36},{wch:30}];
+  const wb=XLSX.utils.book_new();
+  const [y,w]=weekKey.split('-W');
+  XLSX.utils.book_append_sheet(wb,ws,`KW${w}`);
+  const filename=`Arbeitszeit_KW${w}_${y}.xlsx`;
+  if(exportDirHandle){
+    const ok=await writeWorkbookToExportDir(wb,filename);
+    if(ok){ showToast('"'+filename+'" wurde in "'+exportDirName+'" gespeichert.'); return; }
+  }
+  XLSX.writeFile(wb,filename);
+}
+
+/* ---------- Widget-Katalog ---------- */
+const WIDGET_CATALOG=[
+  {type:'kpi',metric:'total',label:'Arbeitszeit',desc:'Gesamtstunden im gewählten Zeitraum.',category:'Kennzahlen',defaultSize:'s'},
+  {type:'kpi',metric:'avg',label:'Ø Std. pro Tag',desc:'Durchschnittliche Tagesarbeitszeit.',category:'Kennzahlen',defaultSize:'s'},
+  {type:'kpi',metric:'days',label:'Erfasste Tage',desc:'Anzahl erfasster Tage im Zeitraum.',category:'Kennzahlen',defaultSize:'s'},
+  {type:'kpi',metric:'topLocation',label:'Top Standort',desc:'Standort mit den meisten Stunden.',category:'Kennzahlen',defaultSize:'s'},
+  {type:'kpi',metric:'topType',label:'Top Buchungstyp',desc:'Häufigster Buchungstyp im Zeitraum.',category:'Kennzahlen',defaultSize:'s'},
+  {type:'kpi',metric:'longest',label:'Längster Tag',desc:'Tag mit den meisten Arbeitsstunden.',category:'Kennzahlen',defaultSize:'s'},
+  {type:'kpi',metric:'absence',label:'Abwesenheitstage',desc:'Tage mit Ferien, Krank, Militär oder Kompens.',category:'Kennzahlen',defaultSize:'s'},
+  {type:'kpi',metric:'avgWindow',label:'Ø Kommen–Gehen',desc:'Durchschnittliches Zeitfenster.',category:'Kennzahlen',defaultSize:'s'},
+  {type:'kpi',metric:'streak',label:'Serie in Folge',desc:'Aufeinanderfolgende erfasste Tage bis heute. 🔥',category:'Kennzahlen',defaultSize:'s'},
+  {type:'kpi',metric:'delta',label:'Vergleich zur Vorperiode',desc:'Veränderung gegenüber dem vorherigen, gleich langen Zeitraum.',category:'Kennzahlen',defaultSize:'s'},
+  {type:'goal-gauge',label:'Ziel-Fortschritt',desc:'Sollstunden vs. erfasste Stunden als Tacho-Anzeige.',category:'Ziele & Saldo',defaultSize:'m'},
+  {type:'overtime-balance',label:'Gleitzeit-Saldo',desc:'Kumulierte Über-/Minusstunden über alle Einträge.',category:'Ziele & Saldo',defaultSize:'s'},
+  {type:'donut-location',label:'Standortverteilung',desc:'Stundenanteile je Standort als Donut.',category:'Verteilungen',defaultSize:'m'},
+  {type:'donut-type',label:'Buchungstyp-Verteilung',desc:'Stundenanteile je Buchungstyp als Donut.',category:'Verteilungen',defaultSize:'m'},
+  {type:'weekday-dist',label:'Wochentag-Muster',desc:'Ø Stunden je Wochentag – zeigt deinen Rhythmus.',category:'Verteilungen',defaultSize:'m'},
+  {type:'punctuality',label:'Ankunftszeiten',desc:'Verteilung deiner Kommen-Zeiten in Zeitfenstern.',category:'Verteilungen',defaultSize:'m'},
+  {type:'location-leaderboard',label:'Standort-Rangliste',desc:'Standorte gerankt nach Stunden, mit Podest 🥇🥈🥉.',category:'Verteilungen',defaultSize:'m'},
+  {type:'trend-bars',label:'Trend',desc:'Verlauf über Tage, Wochen, Monate oder Jahre.',category:'Verläufe',defaultSize:'l'},
+  {type:'heatmap',label:'Kalender-Heatmap',desc:'Intensität deiner Arbeitstage im GitHub-Stil.',category:'Verläufe',defaultSize:'l'},
+  {type:'recent-table',label:'Letzte Einträge',desc:'Mini-Tabelle der zuletzt erfassten Tage.',category:'Verläufe',defaultSize:'l'}
+];
+function catalogEntryFor(instance){
+  return WIDGET_CATALOG.find(c=>c.type===instance.type && (instance.type!=='kpi'||c.metric===instance.settings.metric));
+}
+function widgetHasRangeControl(instance){
+  if(instance.type==='kpi') return instance.settings.metric!=='streak';
+  return ['donut-location','donut-type','trend-bars','weekday-dist','punctuality','location-leaderboard','goal-gauge'].includes(instance.type);
+}
+function defaultRangeFor(type){
+  if(type==='weekday-dist') return 'year';
+  if(type==='punctuality'||type==='location-leaderboard') return 'month';
+  return 'week';
+}
+function defaultWidgets(){
+  return [
+    {id:genId(),type:'kpi',size:'s',settings:{metric:'total',range:'week'}},
+    {id:genId(),type:'kpi',size:'s',settings:{metric:'avg',range:'week'}},
+    {id:genId(),type:'kpi',size:'s',settings:{metric:'streak'}},
+    {id:genId(),type:'kpi',size:'s',settings:{metric:'delta',range:'week'}},
+    {id:genId(),type:'goal-gauge',size:'m',settings:{range:'week',target:42.5}},
+    {id:genId(),type:'overtime-balance',size:'s',settings:{targetPerDay:8.4}},
+    {id:genId(),type:'donut-location',size:'m',settings:{range:'week'}},
+    {id:genId(),type:'donut-type',size:'m',settings:{range:'week'}},
+    {id:genId(),type:'trend-bars',size:'l',settings:{range:'week'}},
+    {id:genId(),type:'heatmap',size:'l',settings:{weeks:18}},
+    {id:genId(),type:'weekday-dist',size:'m',settings:{range:'year'}},
+    {id:genId(),type:'location-leaderboard',size:'m',settings:{range:'month'}}
+  ];
+}
+function loadWidgets(){
+  try{
+    const raw=localStorage.getItem('zb-dashboard-widgets-v2');
+    if(raw){
+      const parsed=JSON.parse(raw);
+      if(Array.isArray(parsed) && parsed.length){ widgets=parsed; return; }
+    }
+  }catch(e){}
+  widgets=defaultWidgets();
+}
+function saveWidgets(){
+  try{ localStorage.setItem('zb-dashboard-widgets-v2', JSON.stringify(widgets)); }catch(e){}
+}
+function addWidgetFromCatalog(idx){
+  const c=WIDGET_CATALOG[idx];if(!c) return;
+  const settings={};
+  if(c.type==='kpi'){ settings.metric=c.metric; if(c.metric!=='streak') settings.range='week'; }
+  else if(c.type==='goal-gauge'){ settings.range='week'; settings.target=42.5; }
+  else if(c.type==='overtime-balance'){ settings.targetPerDay=8.4; }
+  else if(c.type==='heatmap'){ settings.weeks=18; }
+  else if(c.type==='recent-table'){ settings.count=8; }
+  else{ settings.range=defaultRangeFor(c.type); }
+  widgets.push({id:genId(),type:c.type,size:c.defaultSize,settings});
+  saveWidgets();renderApp();
+}
+function setWidgetSetting(widgetId,key,value){
+  const w=widgets.find(x=>x.id===widgetId);if(!w) return;
+  w.settings[key]=value;
+  saveWidgets();renderApp();
+}
+
+/* ---------- Widget-Bodies ---------- */
+function renderKpiBody(instance){
+  const m=instance.settings.metric;
+  const range=instance.settings.range||'week';
+  const list=entriesInRange(range);
+  const totalRange=Math.round(list.reduce((s,e)=>s+e.hours,0)*100)/100;
+  const daysRange=list.length;
+  let value='–',sub='',color='var(--accent)';
+  if(m==='total'){value=totalRange+' h';color='var(--accent)';sub=rangeLabelText(range);}
+  else if(m==='avg'){const avg=daysRange?Math.round((totalRange/daysRange)*100)/100:0;value=avg+' h';color='var(--warning)';sub=daysRange+' Tage erfasst';}
+  else if(m==='days'){value=String(daysRange);color='var(--success)';sub=rangeLabelText(range);}
+  else if(m==='topLocation'){const byLoc=aggregateByLocation(list);value=byLoc[0]?esc(byLoc[0].name):'–';color='#7C5CFC';sub=byLoc[0]?byLoc[0].hours+' h':'Keine Daten';}
+  else if(m==='topType'){const byType=aggregateByType(list);value=byType[0]?esc(byType[0].name):'–';color='#0EA5A5';sub=byType[0]?byType[0].hours+' h':'Keine Daten';}
+  else if(m==='longest'){const l=longestDay(list);value=l?l.hours+' h':'–';color='#F97316';sub=l?formatDateDE(l.date):'Keine Daten';}
+  else if(m==='absence'){value=String(absenceDaysCount(list));color='#64748B';sub='Ferien/Krank/Militär/Kompens';}
+  else if(m==='avgWindow'){value=avgWindow(list)||'–';color='#0284C7';sub=rangeLabelText(range);}
+  else if(m==='streak'){value=currentStreak()+' Tage';color='#EAB308';sub='in Folge erfasst 🔥';}
+  else if(m==='delta'){
+    const prevList=entriesInPreviousRange(range);
+    const prevTotal=Math.round(prevList.reduce((s,e)=>s+e.hours,0)*100)/100;
+    const delta=Math.round((totalRange-prevTotal)*100)/100;
+    const pct=prevTotal>0?Math.round((delta/prevTotal)*100):(totalRange>0?100:0);
+    const up=delta>=0;
+    value=(up?'+':'')+delta+' h';
+    color=up?'var(--success)':'var(--danger)';
+    sub=(up?'▲':'▼')+' '+Math.abs(pct)+'% ggü. Vorperiode ('+prevTotal+' h)';
+  }
+  return `<div class="zb-kpi-body" style="--kpi-c:${color}"><div class="zb-kpi-value">${value}</div>${sub?`<div class="zb-kpi-sub">${esc(sub)}</div>`:''}</div>`;
+}
+function renderGaugeSvg(pct,color){
+  const frac=Math.max(0,Math.min(1,pct/100));
+  const dash=Math.round(frac*1000)/10;
+  return `<svg viewBox="0 0 200 116" width="180" height="104">
+    <path d="M20,100 A80,80 0 0 1 180,100" fill="none" stroke="var(--donut-track)" stroke-width="16" stroke-linecap="round"/>
+    <path d="M20,100 A80,80 0 0 1 180,100" fill="none" stroke="${color}" stroke-width="16" stroke-linecap="round" pathLength="100" stroke-dasharray="${dash} ${100-dash}"/>
+  </svg>`;
+}
+function renderGoalGaugeBody(instance){
+  const range=instance.settings.range||'week';
+  const target=Number(instance.settings.target)||42.5;
+  const list=entriesInRange(range);
+  const total=Math.round(list.reduce((s,e)=>s+e.hours,0)*100)/100;
+  const pct=target>0?Math.round((total/target)*100):0;
+  let color='var(--danger)';
+  if(pct>=110) color='#7C5CFC'; else if(pct>=90) color='var(--success)'; else if(pct>=50) color='var(--warning)';
+  const remain=Math.round((target-total)*100)/100;
+  const foot = total>=target
+    ? `+${Math.abs(remain)} h Überstunden 🎉`
+    : `${remain} h bis Ziel`;
+  return `<div class="zb-gauge-wrap">
+    ${renderGaugeSvg(pct,color)}
+    <div class="zb-gauge-value" style="color:${color}">${pct}%</div>
+    <div class="zb-gauge-sub">${total} / ${target} h · ${esc(rangeLabelText(range))}</div>
+    <div class="zb-gauge-sub2">${esc(foot)}</div>
+    <div class="zb-inline-setting zb-gauge-foot">
+      <label for="tg-${instance.id}">Ziel (Std.)</label>
+      <input id="tg-${instance.id}" type="number" step="0.5" min="0" class="zb-input zb-mini-input" value="${target}" data-action="set-widget-setting" data-widget-id="${instance.id}" data-key="target">
+    </div>
+  </div>`;
+}
+function renderOvertimeBalanceBody(instance){
+  const targetPerDay=Number(instance.settings.targetPerDay)||8.4;
+  const totalAll=Math.round(entries.reduce((s,e)=>s+e.hours,0)*100)/100;
+  const daysAll=entries.length;
+  const expected=Math.round(daysAll*targetPerDay*100)/100;
+  const saldo=Math.round((totalAll-expected)*100)/100;
+  const color=saldo>=0?'var(--success)':'var(--danger)';
+  return `<div class="zb-kpi-body" style="--kpi-c:${color}">
+    <div class="zb-kpi-value">${saldo>=0?'+':''}${saldo} h</div>
+    <div class="zb-kpi-sub">bei ${targetPerDay} Std./Tag Soll · ${daysAll} Tage insgesamt erfasst</div>
+    <div class="zb-inline-setting">
+      <label for="tpd-${instance.id}">Soll/Tag</label>
+      <input id="tpd-${instance.id}" type="number" step="0.1" min="0" class="zb-input zb-mini-input" value="${targetPerDay}" data-action="set-widget-setting" data-widget-id="${instance.id}" data-key="targetPerDay">
+    </div>
+  </div>`;
+}
+function renderWeekdayDistBody(instance){
+  const range=instance.settings.range||'year';
+  const list=entriesInRange(range);
+  if(!list.length) return `<div class="zb-chart-empty">Keine Daten im gewählten Zeitraum.</div>`;
+  const sums=[0,0,0,0,0,0,0],counts=[0,0,0,0,0,0,0];
+  list.forEach(e=>{const idx=(toDate(e.date).getDay()+6)%7;sums[idx]+=e.hours;counts[idx]++;});
+  const data=WEEKDAYS_SHORT.map((label,i)=>({label,hours:counts[i]?Math.round((sums[i]/counts[i])*100)/100:0}));
+  return renderTrendBars(data)+`<div class="zb-hint" style="margin-top:8px;text-align:center">Ø Stunden je Wochentag · ${esc(rangeLabelText(range))}</div>`;
+}
+function renderPunctualityBody(instance){
+  const range=instance.settings.range||'month';
+  const list=entriesInRange(range);
+  if(!list.length) return `<div class="zb-chart-empty">Keine Daten im gewählten Zeitraum.</div>`;
+  const buckets=[{label:'<7:00',test:m=>m<420},{label:'7–7:30',test:m=>m>=420&&m<450},{label:'7:30–8',test:m=>m>=450&&m<480},{label:'8–8:30',test:m=>m>=480&&m<510},{label:'8:30–9',test:m=>m>=510&&m<540},{label:'≥9:00',test:m=>m>=540}];
+  const toMin=t=>{const [h,m]=t.split(':').map(Number);return h*60+m;};
+  const data=buckets.map(b=>({label:b.label,hours:0}));
+  list.forEach(e=>{const m=toMin(e.arrival);const idx=buckets.findIndex(b=>b.test(m));if(idx>=0) data[idx].hours++;});
+  return renderTrendBars(data)+`<div class="zb-hint" style="margin-top:8px;text-align:center">Anzahl Tage je Ankunftsfenster · ${esc(rangeLabelText(range))}</div>`;
+}
+function renderLeaderboardBody(instance){
+  const range=instance.settings.range||'month';
+  const list=entriesInRange(range);
+  const byLoc=aggregateByLocation(list);
+  if(!byLoc.length) return `<div class="zb-chart-empty">Keine Daten im gewählten Zeitraum.</div>`;
+  const max=Math.max(...byLoc.map(d=>d.hours));
+  const medals=['🥇','🥈','🥉'];
+  return `<div class="zb-leaderboard">${byLoc.map((d,i)=>`
+    <div class="zb-lb-row">
+      <span class="zb-lb-rank">${medals[i]||(i+1)+'.'}</span>
+      <span class="zb-lb-name">${esc(d.name)}</span>
+      <div class="zb-lb-bar-track"><div class="zb-lb-bar-fill" style="width:${max?Math.round(d.hours/max*100):0}%;background:${LOCATION_COLORS[d.name]||'var(--accent)'}"></div></div>
+      <span class="zb-lb-val num">${d.hours} h</span>
+    </div>`).join('')}</div>`;
+}
+function renderHeatmapBody(instance){
+  const weeksCount=Number(instance.settings.weeks)||18;
+  const today=toDate(todayISO());
+  const curWk=weekKeyOf(todayISO());
+  const [cy,cw]=curWk.split('-W').map(Number);
+  const startMonday=mondayOfWeek(cy,cw);
+  startMonday.setDate(startMonday.getDate()-(weeksCount-1)*7);
+  const hoursByDate={};
+  entries.forEach(e=>{hoursByDate[e.date]=(hoursByDate[e.date]||0)+e.hours;});
+  const cols=[];
+  for(let w=0;w<weeksCount;w++){
+    let cellsHtml='';
+    for(let d=0;d<7;d++){
+      const dt=new Date(startMonday);dt.setDate(dt.getDate()+w*7+d);
+      const iso=isoOf(dt);
+      if(dt>today){cellsHtml+=`<div class="zb-hm-cell zb-hm-future"></div>`;continue;}
+      const h=Math.round((hoursByDate[iso]||0)*100)/100;
+      const level=h<=0?0:h<4?1:h<7?2:h<9?3:4;
+      cellsHtml+=`<div class="zb-hm-cell zb-hm-l${level}" title="${formatDateDE(iso)}: ${h?h+' h':'keine Buchung'}"></div>`;
+    }
+    cols.push(`<div class="zb-hm-col">${cellsHtml}</div>`);
+  }
+  return `<div class="zb-hm-wrap">
+    <div class="zb-hm-grid">${cols.join('')}</div>
+    <div class="zb-hm-legend">
+      <span>Wenig</span><span class="zb-hm-cell zb-hm-l0"></span><span class="zb-hm-cell zb-hm-l1"></span><span class="zb-hm-cell zb-hm-l2"></span><span class="zb-hm-cell zb-hm-l3"></span><span class="zb-hm-cell zb-hm-l4"></span><span>Viel</span>
+      <select class="zb-select zb-mini-select" style="margin-left:auto" data-action="set-widget-setting" data-widget-id="${instance.id}" data-key="weeks">
+        ${[12,18,26,52].map(w=>`<option value="${w}" ${w===weeksCount?'selected':''}>${w} Wochen</option>`).join('')}
+      </select>
+    </div>
+  </div>`;
+}
+function renderRecentTableBody(instance){
+  const count=Number(instance.settings.count)||8;
+  const list=[...entries].sort((a,b)=>b.date.localeCompare(a.date)).slice(0,count);
+  if(!list.length) return `<div class="zb-chart-empty">Noch keine Einträge.</div>`;
+  return `<div class="zb-table-wrap"><table class="zb-table"><thead><tr><th>Datum</th><th>Standort</th><th>Zeit</th><th>Std.</th></tr></thead>
+    <tbody>${list.map(e=>`<tr><td>${formatDateDE(e.date)} <span class="muted">· ${weekdayShort(e.date)}</span></td><td>${locBadge(e.location)}</td><td class="num muted">${e.arrival}–${e.departure}</td><td class="num strong">${e.hours} h</td></tr>`).join('')}</tbody></table></div>
+    <div style="text-align:right;margin-top:10px">
+      <select class="zb-select zb-mini-select" data-action="set-widget-setting" data-widget-id="${instance.id}" data-key="count">
+        ${[5,8,12,20].map(c=>`<option value="${c}" ${c===count?'selected':''}>${c} Einträge</option>`).join('')}
+      </select>
+    </div>`;
+}
+function renderWidgetBody(instance){
+  const range=instance.settings.range||'week';
+  switch(instance.type){
+    case 'kpi': return renderKpiBody(instance);
+    case 'goal-gauge': return renderGoalGaugeBody(instance);
+    case 'overtime-balance': return renderOvertimeBalanceBody(instance);
+    case 'donut-location': return renderDonutBlock(aggregateByLocation(entriesInRange(range)),LOCATION_COLORS);
+    case 'donut-type': {const d=aggregateByType(entriesInRange(range));return d.length?renderDonutBlock(d,TYPE_COLORS):`<div class="zb-chart-empty">Noch keine Aufteilung erfasst.</div>`;}
+    case 'weekday-dist': return renderWeekdayDistBody(instance);
+    case 'punctuality': return renderPunctualityBody(instance);
+    case 'location-leaderboard': return renderLeaderboardBody(instance);
+    case 'trend-bars': {const trend=trendForRange(range);return renderTrendBars(trend.data);}
+    case 'heatmap': return renderHeatmapBody(instance);
+    case 'recent-table': return renderRecentTableBody(instance);
+    default: return '';
+  }
+}
+function renderSizeButtons(instance){
+  return `<span class="zb-size-group">${['s','m','l'].map(s=>`<button class="zb-size-btn ${instance.size===s?'active':''}" data-action="set-widget-size" data-widget-id="${instance.id}" data-size="${s}">${s.toUpperCase()}</button>`).join('')}</span>`;
+}
+function renderMoveButtons(instance){
+  const idx=widgets.findIndex(w=>w.id===instance.id);
+  const isFirst=idx<=0, isLast=idx>=widgets.length-1;
+  return `<span class="zb-move-group">
+    <button class="zb-move-btn" data-action="move-widget-up" data-widget-id="${instance.id}" title="Nach oben" ${isFirst?'disabled':''}>${icon('arrowUp',13)}</button>
+    <button class="zb-move-btn" data-action="move-widget-down" data-widget-id="${instance.id}" title="Nach unten" ${isLast?'disabled':''}>${icon('arrowDown',13)}</button>
+  </span>`;
+}
+function renderWidget(instance){
+  const cat=catalogEntryFor(instance);
+  const title=cat?cat.label:'Widget';
+  const hasRange=widgetHasRangeControl(instance);
+  const rangeVal=instance.settings.range||'week';
+  return `<div class="zb-widget wsize-${instance.size}" data-widget-id="${instance.id}">
+    <div class="zb-widget-head">
+      <span class="zb-widget-title">${esc(title)}</span>
+      <div class="zb-widget-controls">
+        ${hasRange?`<select class="zb-select zb-mini-select" data-action="set-widget-range" data-widget-id="${instance.id}">
+          ${RANGE_STEPS.map(r=>`<option value="${r}" ${r===rangeVal?'selected':''}>${RANGE_LABELS[r]}</option>`).join('')}
+        </select>`:''}
+        ${dashboardEditMode?renderSizeButtons(instance):''}
+        ${dashboardEditMode?renderMoveButtons(instance):''}
+        ${dashboardEditMode?`<button class="zb-iconbtn danger" data-action="remove-widget" data-widget-id="${instance.id}" title="Entfernen">${icon('x',13)}</button>`:''}
+      </div>
+    </div>
+    <div class="zb-widget-body">${renderWidgetBody(instance)}</div>
+  </div>`;
+}
+function renderWidgetPicker(){
+  const cats=[...new Set(WIDGET_CATALOG.map(c=>c.category))];
+  return `<section class="zb-card zb-widget-picker">
+    <div class="zb-widget-picker-head">Widget hinzufügen</div>
+    <div class="zb-widget-picker-sub">Über ${WIDGET_CATALOG.length} Widgets zur Auswahl — beliebig kombinierbar.</div>
+    ${cats.map(cat=>`
+      <div class="zb-wp-cat">${esc(cat)}</div>
+      <div class="zb-wp-grid">
+        ${WIDGET_CATALOG.filter(c=>c.category===cat).map(c=>`
+          <button class="zb-wp-item" data-action="add-widget" data-catalog-index="${WIDGET_CATALOG.indexOf(c)}">
+            <span class="zb-wp-name">${esc(c.label)}</span>
+            <span class="zb-wp-desc">${esc(c.desc)}</span>
+          </button>`).join('')}
+      </div>`).join('')}
+  </section>`;
+}
+function renderDashboardToolbar(){
+  return `<div class="zb-dash-toolbar">
+    <span class="zb-dash-hint">${dashboardEditMode?'Bearbeitungsmodus: Widgets hinzufügen, mit ▲▼ verschieben, Grösse (S/M/L) ändern oder entfernen.':'Dein Dashboard, deine Widgets — passe an, was du sehen willst.'}</span>
+    <div class="zb-dash-toolbar-actions">
+      ${dashboardEditMode?`<button class="zb-btn-ghost sm" data-action="reset-dashboard">Zurücksetzen</button>`:''}
+      <button class="zb-btn-primary sm" data-action="toggle-edit-mode">${dashboardEditMode?icon('check',13)+' Fertig':icon('pencil',13)+' Dashboard anpassen'}</button>
+    </div>
+  </div>`;
+}
+
+function onAppClick(e){
+  const el=e.target.closest('[data-action]');if(!el) return;
+  const a=el.dataset.action;
+  if(a==='set-tab'){activeTab=el.dataset.tab;renderApp();}
+  else if(a==='select-location'){selectLocation(el.dataset.value);}
+  else if(a==='add-split'){addSplit();}
+  else if(a==='delete-split'){deleteSplit(el.dataset.id);}
+  else if(a==='submit-entry'){submitEntry();}
+  else if(a==='cancel-edit'){resetForm();renderApp();}
+  else if(a==='edit-entry'){startEdit(el.dataset.id);}
+  else if(a==='delete-entry'){deleteEntry(el.dataset.id);}
+  else if(a==='week-prev'){selectedWeek=shiftWeekKey(selectedWeek,-1);renderApp();}
+  else if(a==='week-next'){selectedWeek=shiftWeekKey(selectedWeek,1);renderApp();}
+  else if(a==='cal-prev'){calendarViewWeek=shiftWeekKey(calendarViewWeek,-1);renderApp();}
+  else if(a==='cal-next'){calendarViewWeek=shiftWeekKey(calendarViewWeek,1);renderApp();}
+  else if(a==='cal-pick'){onDateChange(el.dataset.date);}
+  else if(a==='export-week'){exportWeek(selectedWeek);}
+  else if(a==='export-backup'){exportBackup();}
+  else if(a==='toggle-theme'){toggleTheme();}
+  else if(a==='go-wochen'){activeTab='wochen';renderApp();}
+  else if(a==='go-erfassen'){activeTab='erfassen';renderApp();}
+  else if(a==='choose-folder'){chooseExportFolder();}
+  else if(a==='clear-folder'){clearExportFolder();}
+  else if(a==='toggle-edit-mode'){dashboardEditMode=!dashboardEditMode;renderApp();}
+  else if(a==='reset-dashboard'){ if(!confirm('Dashboard auf das Standardlayout zurücksetzen? Eigene Widgets und Anordnung gehen verloren.')) return; widgets=defaultWidgets(); saveWidgets(); renderApp(); }
+  else if(a==='add-widget'){ addWidgetFromCatalog(Number(el.dataset.catalogIndex)); }
+  else if(a==='remove-widget'){ widgets=widgets.filter(w=>w.id!==el.dataset.widgetId); saveWidgets(); renderApp(); }
+  else if(a==='set-widget-size'){ const w=widgets.find(x=>x.id===el.dataset.widgetId); if(w){ w.size=el.dataset.size; saveWidgets(); renderApp(); } }
+  else if(a==='move-widget-up'){ moveWidget(el.dataset.widgetId,-1); }
+  else if(a==='move-widget-down'){ moveWidget(el.dataset.widgetId,1); }
+}
+function moveWidget(widgetId,dir){
+  const idx=widgets.findIndex(w=>w.id===widgetId);if(idx<0) return;
+  const newIdx=idx+dir;if(newIdx<0||newIdx>=widgets.length) return;
+  const [item]=widgets.splice(idx,1);
+  widgets.splice(newIdx,0,item);
+  saveWidgets();renderApp();
+}
+function onAppChange(e){
+  const el=e.target.closest('[data-action]');if(!el) return;
+  const a=el.dataset.action;
+  if(a==='select-week'){selectedWeek=el.value;renderApp();}
+  else if(a==='set-widget-range'){ setWidgetSetting(el.dataset.widgetId,'range',el.value); }
+  else if(a==='set-widget-setting'){ setWidgetSetting(el.dataset.widgetId, el.dataset.key, el.value); }
+}
+function renderHeader(){
+  const tabs=[{id:'dashboard',label:'Dashboard'},{id:'erfassen',label:'Erfassen'},{id:'wochen',label:'Wochen'}];
+  return `<header class="zb-header">
+    <div class="zb-title">Zeiterfassung</div>
+    <nav class="zb-nav">${tabs.map(t=>`<button class="zb-nav-btn ${activeTab===t.id?'active':''}" data-action="set-tab" data-tab="${t.id}">${t.label}</button>`).join('')}</nav>
+    <div class="zb-header-right">
+      <span class="zb-save-status" id="save-status">${saving?'Speichert…':'Gespeichert'}</span>
+      <button class="zb-iconbtn" data-action="toggle-theme" title="Darkmode umschalten">${icon(theme==='dark'?'sun':'moon',16)}</button>
+      <button class="zb-btn-ghost sm" data-action="export-backup">${icon('download',13)} Backup</button>
+      <label class="zb-btn-ghost sm" style="cursor:pointer;margin:0">
+        Wiederherstellen
+        <input type="file" accept="application/json" style="display:none" onchange="importBackup(this.files[0]);this.value=''">
+      </label>
+    </div>
+  </header>`;
+}
+function renderFolderCard(){
+  const supported=fsApiSupported();
+  return `<section class="zb-card zb-folder-card">
+    <div class="zb-folder-info">
+      <span class="zb-folder-label">Export-Zielordner (Freitags-Export & manueller Excel-Export)</span>
+      <span class="zb-folder-path ${exportDirName?'':'unset'}">${exportDirName?('📁 '+esc(exportDirName)):(supported?'Kein Ordner gewählt — Export lädt normal herunter':'Vom Browser nicht unterstützt — Export lädt normal herunter')}</span>
+    </div>
+    <div class="zb-folder-actions">
+      ${supported?`<button class="zb-btn-ghost sm" data-action="choose-folder">${icon('folder',13)} ${exportDirName?'Ordner ändern':'Zielordner wählen'}</button>`:''}
+      ${exportDirName?`<button class="zb-btn-ghost sm danger" data-action="clear-folder">Zurücksetzen</button>`:''}
+    </div>
+  </section>`;
+}
+function renderLocationPicker(selected){
+  return `<div class="zb-seg">${LOCATIONS.map(loc=>{
+    const active=selected===loc;const c=LOCATION_COLORS[loc];
+    return `<button class="zb-seg-btn" style="${active?`background:${c};border-color:${c};color:#fff`:''}" data-action="select-location" data-value="${esc(loc)}">${esc(loc)}</button>`;
+  }).join('')}</div>`;
+}
+function renderErfassen(){
+  const total=calcHours(form.arrival,form.departure,form.pause);
+  const splitSum=Math.round(form.splits.reduce((s,x)=>s+x.hours,0)*100)/100;
+  const diff=Math.round((total-splitSum)*100)/100;
+  const list=[...entries].sort((a,b)=>b.date.localeCompare(a.date)).slice(0,12);
+  return `
+  <section class="zb-card zb-form-card">
+    <div class="zb-form-head">
+      <span>${editingId?'Eintrag bearbeiten':'Neuer Tageseintrag'}</span>
+      ${editingId?`<button class="zb-iconbtn" data-action="cancel-edit">${icon('x',14)}</button>`:''}
+    </div>
+    <div class="zb-field">
+      <label class="zb-label">Datum</label>
+      ${renderCalendarStrip()}
+      <div class="zb-hint">${formatDateDE(form.date)} · ${weekdayName(form.date)} · Pro Tag ist nur ein Standort möglich. Ein Punkt markiert Tage mit bestehendem Eintrag.</div>
+    </div>
+    <div class="zb-field">
+      <label class="zb-label">Standort</label>
+      ${renderLocationPicker(form.location)}
+    </div>
+    <div class="zb-grid2">
+      <div>
+        <label class="zb-label">Kommen / Gehen</label>
+        <div class="zb-row-inputs">
+          <input id="f-arrival" type="text" inputmode="numeric" class="zb-input zb-time-input" value="${form.arrival}" placeholder="06:00" onchange="onArrivalChange(this)">
+          <span class="zb-time-arrow">–</span>
+          <input id="f-departure" type="text" inputmode="numeric" class="zb-input zb-time-input" value="${form.departure}" placeholder="17:00" onchange="onDepartureChange(this)">
+        </div>
+      </div>
+      <div>
+        <label class="zb-label">Mittag (Min)</label>
+        <input id="f-pause" type="number" min="0" class="zb-input zb-pause" value="${form.pause}" oninput="updateTimeCalcs()">
+      </div>
+    </div>
+    <div class="zb-field">
+      <span id="hours-preview" class="zb-hours-preview">Arbeitszeit: ${total} Std.</span>
+    </div>
+    <div class="zb-field">
+      <label class="zb-label">Bemerkung</label>
+      <input id="f-remark" class="zb-input" placeholder="Kontext, Ticket-Nr. …" value="${esc(form.remark)}">
+    </div>
+    <div class="zb-field">
+      <label class="zb-label">Aufteilung nach Buchungstyp</label>
+      <div class="zb-split-list">
+        ${form.splits.length===0?`<div class="zb-hint" style="margin:0 0 8px">Noch keine Aufteilung hinzugefügt.</div>`:form.splits.map(s=>`
+          <div class="zb-split-row">
+            <span class="name">${typeBadge(s.type,null,s.ref)}</span>
+            <span class="val">
+              <span class="num strong">${s.hours} h</span>
+              <button class="zb-iconbtn danger" data-action="delete-split" data-id="${s.id}">${icon('trash',13)}</button>
+            </span>
+          </div>`).join('')}
+      </div>
+      <div class="zb-split-add">
+        <select id="split-type" class="zb-select">
+          ${TYPES.map(t=>`<option value="${t}">${t}</option>`).join('')}
+        </select>
+        <input id="split-ref" type="text" class="zb-input" style="max-width:130px" placeholder="Zusatz">
+        <input id="split-hours" type="number" min="0" step="0.25" class="zb-input" placeholder="Std.">
+        <button class="zb-btn-ghost sm" data-action="add-split">${icon('plus',13)} Hinzufügen</button>
+      </div>
+      <div id="split-summary" class="zb-split-summary ${diff===0?'ok':'warn'}">Aufgeteilt: ${splitSum} von ${total} Std.${diff!==0?(diff>0?` — noch offen: ${diff} Std.`:` — ${Math.abs(diff)} Std. zu viel`):' — passt genau'}</div>
+    </div>
+    <div class="zb-field" style="margin-bottom:0;display:flex;align-items:center;gap:14px;flex-wrap:wrap">
+      <button class="zb-btn-primary" data-action="submit-entry">${icon('plus',15)} ${editingId?'Aktualisieren':'Tag speichern'}</button>
+      ${formError?`<span class="zb-error" style="margin:0">${esc(formError)}</span>`:''}
+    </div>
+  </section>
+  <div class="zb-section-head">
+    <span>Letzte Einträge</span>
+    <button class="zb-btn-ghost sm" data-action="go-wochen">Wochenübersicht ${icon('chevronRight',13)}</button>
+  </div>
+  <section class="zb-card zb-table-wrap">
+    ${list.length===0?`<div class="zb-empty">Noch keine Einträge. Erfasse oben deinen ersten Tag.</div>`:`
+    <table class="zb-table"><thead><tr><th>Datum</th><th>Standort</th><th>Kommen–Gehen</th><th>Arbeitszeit</th><th>Aufteilung</th><th>Bemerkung</th><th></th></tr></thead>
+    <tbody>${list.map(e=>`<tr>
+      <td>${formatDateDE(e.date)} <span class="muted">· ${weekdayShort(e.date)}</span></td>
+      <td>${locBadge(e.location)}</td>
+      <td class="num muted">${e.arrival}–${e.departure}</td>
+      <td class="num strong">${e.hours} h</td>
+      <td><div class="zb-badge-row">${e.splits.map(s=>typeBadge(s.type,s.hours,s.ref)).join('')||'<span class="faint">–</span>'}</div></td>
+      <td class="muted ellipsis">${esc(e.remark)}</td>
+      <td class="actions">
+        <button class="zb-iconbtn" data-action="edit-entry" data-id="${e.id}">${icon('pencil',14)}</button>
+        <button class="zb-iconbtn danger" data-action="delete-entry" data-id="${e.id}">${icon('trash',14)}</button>
+      </td></tr>`).join('')}</tbody></table>`}
+  </section>`;
+}
+function renderWochen(){
+  const map=entriesByWeek();
+  const weekEntries=map[selectedWeek]||[];
+  const weeksWithData=Object.keys(map).sort().reverse();
+  const total=Math.round(weekEntries.reduce((s,e)=>s+e.hours,0)*100)/100;
+  const [y,w]=selectedWeek.split('-W');
+  return `
+  ${renderFolderCard()}
+  <div class="zb-week-toolbar">
+    <div class="zb-week-nav">
+      <button class="zb-iconbtn" data-action="week-prev">${icon('chevronLeft',16)}</button>
+      <div class="zb-week-badge"><div class="zb-week-kw">KW ${w} · ${y}</div><div class="zb-week-range num">${weekRangeLabel(selectedWeek)}</div></div>
+      <button class="zb-iconbtn" data-action="week-next">${icon('chevronRight',16)}</button>
+      ${weeksWithData.length>0?`<select class="zb-select" style="max-width:240px" data-action="select-week">${weeksWithData.map(wk=>{
+        const [yy,ww]=wk.split('-W');return `<option value="${wk}" ${wk===selectedWeek?'selected':''}>KW ${ww} · ${yy} (${weekRangeLabel(wk)})</option>`;
+      }).join('')}</select>`:''}
+    </div>
+    <button class="zb-btn-primary" data-action="export-week" ${weekEntries.length===0?'disabled':''}>${icon('download',15)} Als Excel exportieren</button>
+  </div>
+  <section class="zb-card zb-table-wrap">
+    ${weekEntries.length===0?`<div class="zb-empty">Keine Einträge in dieser Woche.</div>`:`
+    <table class="zb-table"><thead><tr><th>Tag</th><th>Datum</th><th>Standort</th><th>Kommen–Gehen</th><th>Mittag</th><th>Arbeitszeit</th><th>Aufteilung</th><th>Bemerkung</th><th></th></tr></thead>
+    <tbody>${weekEntries.map(e=>`<tr>
+      <td class="muted">${weekdayName(e.date)}</td><td>${formatDateDE(e.date)}</td>
+      <td>${locBadge(e.location)}</td>
+      <td class="num muted">${e.arrival}–${e.departure}</td>
+      <td class="num faint">${e.pause}′</td>
+      <td class="num strong">${e.hours} h</td>
+      <td><div class="zb-badge-row">${e.splits.map(s=>typeBadge(s.type,s.hours,s.ref)).join('')||'<span class="faint">–</span>'}</div></td>
+      <td class="muted ellipsis">${esc(e.remark)}</td>
+      <td class="actions">
+        <button class="zb-iconbtn" data-action="edit-entry" data-id="${e.id}">${icon('pencil',14)}</button>
+        <button class="zb-iconbtn danger" data-action="delete-entry" data-id="${e.id}">${icon('trash',14)}</button>
+      </td></tr>`).join('')}</tbody>
+    <tfoot><tr><td colspan="5" class="total-label">Total</td><td class="num strong accent">${total} h</td><td colspan="3"></td></tr></tfoot>
+    </table>`}
+  </section>`;
+}
+function renderDonut(data,colorMap,size,thickness){
+  size=size||150;thickness=thickness||20;
+  const total=data.reduce((s,d)=>s+d.hours,0);
+  const r=(size-thickness)/2, c=2*Math.PI*r, cx=size/2, cy=size/2;
+  let offset=0;
+  const segments=data.map(d=>{
+    const frac=total>0?d.hours/total:0;
+    const len=Math.max(frac*c-1.5,0);
+    const seg=`<circle cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke="${colorMap[d.name]||'#64748B'}" stroke-width="${thickness}" stroke-linecap="round" stroke-dasharray="${len} ${c-len}" stroke-dashoffset="${-offset}" transform="rotate(-90 ${cx} ${cy})"/>`;
+    offset+=frac*c;
+    return seg;
+  }).join('');
+  return `<div class="zb-donut" style="width:${size}px;height:${size}px">
+    <svg width="${size}" height="${size}" viewBox="0 0 ${size} ${size}">
+      <circle cx="${cx}" cy="${cy}" r="${r}" fill="none" style="stroke:var(--donut-track)" stroke-width="${thickness}"/>
+      ${segments}
+    </svg>
+    <div class="zb-donut-center"><div class="zb-donut-total">${Math.round(total*10)/10}</div><div class="zb-donut-unit">Std.</div></div>
+  </div>`;
+}
+function renderLegend(data,colorMap){
+  const total=data.reduce((s,d)=>s+d.hours,0);
+  return `<div class="zb-legend">${data.map(d=>{
+    const pct=total>0?Math.round(d.hours/total*100):0;
+    return `<div class="zb-legend-row">
+      <span class="zb-legend-dot" style="background:${colorMap[d.name]||'#64748B'}"></span>
+      <span class="zb-legend-name">${esc(d.name)}</span>
+      <span class="zb-legend-val num">${d.hours}h <span class="faint">${pct}%</span></span>
+    </div>`;
+  }).join('')}</div>`;
+}
+function renderDonutBlock(data,colorMap){
+  if(!data.length) return `<div class="zb-chart-empty">Keine Daten.</div>`;
+  return `<div class="zb-donut-wrap">${renderDonut(data,colorMap)}${renderLegend(data,colorMap)}</div>`;
+}
+function trendForRange(range){
+  if(range==='day'){
+    const endD=toDate(todayISO());
+    const startD=new Date(endD);
+    startD.setDate(startD.getDate()-13);
+    const data=[];
+    for(let d=new Date(startD);d<=endD;d.setDate(d.getDate()+1)){
+      const iso=isoOf(d);
+      const dayEntries=entries.filter(e=>e.date===iso);
+      data.push({label:weekdayShort(iso),hours:Math.round(dayEntries.reduce((s,e)=>s+e.hours,0)*100)/100});
+    }
+    return {title:'Tagestrend (letzte 14 Tage)',data};
+  }
+  if(range==='month'){
+    const {start,end}=getRangeBounds('month',todayISO());
+    const startD=toDate(start),endD=toDate(end);
+    const data=[];
+    for(let d=new Date(startD);d<=endD;d.setDate(d.getDate()+1)){
+      const iso=isoOf(d);
+      const dayEntries=entries.filter(e=>e.date===iso);
+      data.push({label:String(d.getDate()),hours:Math.round(dayEntries.reduce((s,e)=>s+e.hours,0)*100)/100});
+    }
+    return {title:'Tagestrend (aktueller Monat)',data};
+  }
+  if(range==='year'){
+    const y=toDate(todayISO()).getFullYear();
+    const data=[];
+    for(let m=0;m<12;m++){
+      const start=isoOf(new Date(y,m,1)), end=isoOf(new Date(y,m+1,0));
+      const monthEntries=entries.filter(e=>e.date>=start&&e.date<=end);
+      data.push({label:MONTHS_FULL[m].slice(0,3),hours:Math.round(monthEntries.reduce((s,e)=>s+e.hours,0)*100)/100});
+    }
+    return {title:'Jahrestrend',data};
+  }
+  const map=entriesByWeek();
+  const data=Object.keys(map).sort().slice(-8).map(wk=>({label:'KW'+wk.split('-W')[1],hours:Math.round(map[wk].reduce((s,e)=>s+e.hours,0)*100)/100}));
+  return {title:'Wochentrend (letzte 8 Wochen)',data};
+}
+function renderTrendBars(data){
+  if(!data.length) return `<div class="zb-chart-empty">Keine Daten.</div>`;
+  const max=Math.max(1,...data.map(t=>t.hours));
+  return `<div class="zb-trend-bars">${data.map(t=>`
+    <div class="zb-trend-col">
+      <div class="zb-trend-val num">${t.hours}</div>
+      <div class="zb-trend-bar" style="height:${Math.max(4,Math.round((t.hours/max)*100))}%"></div>
+      <div class="zb-trend-label">${t.label}</div>
+    </div>`).join('')}</div>`;
+}
+
+function renderDashboard(){
+  if(entries.length===0) return `
+    <section class="zb-card zb-empty-big">
+      Noch keine Daten vorhanden.
+      <div style="margin-top:14px"><button class="zb-btn-primary" data-action="go-erfassen">Ersten Tag erfassen</button></div>
+    </section>`;
+  return renderDashboardToolbar()
+    + (dashboardEditMode?renderWidgetPicker():'')
+    + (widgets.length===0
+        ? `<section class="zb-card zb-empty-big">Keine Widgets ausgewählt.<div style="margin-top:14px"><button class="zb-btn-primary" data-action="toggle-edit-mode">${icon('plus',15)} Widgets hinzufügen</button></div></section>`
+        : `<div class="zb-dash-grid">${widgets.map(w=>renderWidget(w)).join('')}</div>`);
+}
+
+function renderApp(){
+  const app=document.getElementById('app');
+  app.innerHTML = renderHeader()
+    + `<main>${activeTab==='dashboard'?renderDashboard():activeTab==='erfassen'?renderErfassen():renderWochen()}</main>`;
+}
+
+function init(){
+  loadTheme();
+  load();
+  loadWidgets();
+  selectedWeek=weekKeyOf(todayISO());
+  calendarViewWeek=weekKeyOf(form.date);
+  const app=document.getElementById('app');
+  app.addEventListener('click', onAppClick);
+  app.addEventListener('change', onAppChange);
+  renderApp();
+  restoreExportDir();
+}
+init();
+</script>
+</body>
+</html>
