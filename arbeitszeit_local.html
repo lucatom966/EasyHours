@@ -97,6 +97,10 @@ main{flex:1;padding:26px 28px 48px;}
 .zb-split-row{display:flex;align-items:center;justify-content:space-between;padding:9px 13px;background:var(--bg);border-radius:9px;margin-bottom:6px;font-size:13px;}
 .zb-split-row .name{font-weight:600;}
 .zb-split-row .val{display:flex;align-items:center;gap:10px;}
+.zb-split-edit-row{display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:9px 13px;background:var(--bg);border-radius:9px;margin-bottom:6px;}
+.zb-split-edit-row .zb-select{width:auto;flex:1 1 130px;min-width:110px;}
+.zb-split-edit-row .zb-input{width:auto;flex:1 1 100px;min-width:90px;}
+.zb-split-edit-row .zb-split-hours-input{flex:0 0 70px;min-width:70px;}
 .zb-split-add{display:flex;gap:8px;align-items:center;flex-wrap:wrap;}
 .zb-split-add .zb-select{max-width:220px;}
 .zb-split-add .zb-input{max-width:90px;}
@@ -149,7 +153,9 @@ table.zb-table{border-collapse:collapse;width:100%;}
 .zb-trend-val{font-size:11px;color:var(--text-muted);font-weight:700;}
 .zb-trend-label{font-size:10.5px;color:var(--text-faint);}
 .zb-loading{height:60vh;display:flex;align-items:center;justify-content:center;color:var(--text-faint);font-size:13px;}
-.zb-folder-card{padding:14px 18px;margin-bottom:18px;display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;}
+.zb-folder-card{padding:14px 18px;margin-bottom:18px;}
+.zb-folder-row{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;}
+.zb-folder-sep{height:1px;background:var(--border);margin:14px 0;}
 .zb-folder-info{display:flex;flex-direction:column;gap:3px;min-width:0;}
 .zb-folder-label{font-size:11px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:.04em;}
 .zb-folder-path{font-size:12.5px;color:var(--text);font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:420px;}
@@ -246,15 +252,59 @@ html{-webkit-text-size-adjust:100%;}
 <script>
 const STORAGE_KEY='zb-day-data-v1';
 const LOCATIONS=['Chur','Zürich-Flughafen','St. Gallen','Bern','Homeoffice'];
-const TYPES=['Militär','Ferien','Kompens','Krank','OPS','LER','CR','IC','SR'];
 const LOCATION_COLORS={'Chur':'#3B5BDB','Zürich-Flughafen':'#0EA5A5','St. Gallen':'#7C5CFC','Bern':'#D97706','Homeoffice':'#64748B'};
-const TYPE_COLORS={'Militär':'#475569','Ferien':'#16A34A','Kompens':'#0EA5A5','Krank':'#DC2626','OPS':'#3B5BDB','LER':'#7C5CFC','CR':'#D97706','IC':'#DB2777','SR':'#0284C7'};
+const DEFAULT_TYPE_SEED=[
+  {name:'Militär',color:'#475569'},{name:'Ferien',color:'#16A34A'},{name:'Kompens',color:'#0EA5A5'},
+  {name:'Krank',color:'#DC2626'},{name:'OPS',color:'#3B5BDB'},{name:'LER',color:'#7C5CFC'},
+  {name:'CR',color:'#D97706'},{name:'IC',color:'#DB2777'},{name:'SR',color:'#0284C7'}
+];
+const TYPE_COLOR_PALETTE=['#475569','#16A34A','#0EA5A5','#DC2626','#3B5BDB','#7C5CFC','#D97706','#DB2777','#0284C7','#059669','#9333EA','#EA580C','#65A30D','#0891B2'];
+let BOOKING_TYPES=[];
+function loadBookingTypes(){
+  try{
+    const raw=localStorage.getItem('zb-booking-types-v1');
+    if(raw){
+      const parsed=JSON.parse(raw);
+      if(Array.isArray(parsed) && parsed.length){ BOOKING_TYPES=parsed; return; }
+    }
+  }catch(e){}
+  BOOKING_TYPES=DEFAULT_TYPE_SEED.map(t=>({...t}));
+}
+function saveBookingTypes(){
+  try{ localStorage.setItem('zb-booking-types-v1', JSON.stringify(BOOKING_TYPES)); }catch(e){}
+}
+function nextPaletteColor(){
+  const used=new Set(BOOKING_TYPES.map(t=>t.color));
+  return TYPE_COLOR_PALETTE.find(c=>!used.has(c)) || TYPE_COLOR_PALETTE[BOOKING_TYPES.length % TYPE_COLOR_PALETTE.length];
+}
+function typeNames(){ return BOOKING_TYPES.map(t=>t.name); }
+function typeColor(name){ const t=BOOKING_TYPES.find(x=>x.name===name); return t?t.color:'#64748B'; }
+function typeColorMap(){ const m={}; BOOKING_TYPES.forEach(t=>{m[t.name]=t.color;}); return m; }
+function addBookingType(){
+  const inp=document.getElementById('new-type-name');if(!inp) return;
+  const name=inp.value.trim();if(!name) return;
+  if(BOOKING_TYPES.some(t=>t.name===name)){ alert('Dieser Buchungstyp existiert bereits.'); return; }
+  BOOKING_TYPES.push({name,color:nextPaletteColor()});
+  saveBookingTypes();renderApp();
+}
+function renameBookingType(index,newName){
+  newName=(newName||'').trim();
+  const t=BOOKING_TYPES[index];if(!t) return;
+  if(!newName || BOOKING_TYPES.some((x,i)=>i!==index && x.name===newName)){ renderApp(); return; }
+  t.name=newName;
+  saveBookingTypes();renderApp();
+}
+function deleteBookingType(index){
+  const t=BOOKING_TYPES[index];if(!t) return;
+  if(!confirm(`Buchungstyp "${t.name}" wirklich löschen? Bereits erfasste Einträge mit diesem Typ bleiben unverändert erhalten und werden weiterhin korrekt angezeigt — er steht nur bei neuen Einträgen nicht mehr zur Auswahl.`)) return;
+  BOOKING_TYPES.splice(index,1);
+  saveBookingTypes();renderApp();
+}
 
 let entries=[];
 let activeTab='dashboard';
 let editingId=null;
 let formError='';
-let saving=false;
 function defaultForm(){return {date:todayISO(),location:'',arrival:'08:00',departure:'17:00',pause:60,remark:'',splits:[]};}
 let form=defaultForm();
 let selectedWeek;
@@ -262,6 +312,8 @@ let calendarViewWeek;
 let theme='light';
 let exportDirHandle=null;
 let exportDirName='';
+let backupDirHandle=null;
+let backupDirName='';
 let toastTimer=null;
 
 /* Dashboard-Widget-Zustand */
@@ -289,13 +341,7 @@ function load(){
   }catch(e){}
 }
 function save(){
-  saving=true; updateSaveIndicator();
   try{ localStorage.setItem(STORAGE_KEY, JSON.stringify({entries})); }catch(e){}
-  saving=false; updateSaveIndicator();
-}
-function updateSaveIndicator(){
-  const el=document.getElementById('save-status');
-  if(el) el.textContent = saving ? 'Speichert…' : 'Gespeichert';
 }
 function showToast(msg,ms){
   ms=ms||3200;
@@ -314,7 +360,8 @@ function showToast(msg,ms){
 /* ---------- Zielordner: IndexedDB-Speicher für den FileSystemDirectoryHandle ---------- */
 const IDB_NAME='zb-fs-handles';
 const IDB_STORE='handles';
-const IDB_KEY='exportDir';
+const IDB_KEY_EXPORT='exportDir';
+const IDB_KEY_BACKUP='backupDir';
 function idbOpen(){
   return new Promise((resolve,reject)=>{
     const req=indexedDB.open(IDB_NAME,1);
@@ -356,7 +403,7 @@ async function verifyDirPermission(handle,requestIfNeeded){
 async function restoreExportDir(){
   if(!fsApiSupported()) return;
   try{
-    const handle=await idbGet(IDB_KEY);
+    const handle=await idbGet(IDB_KEY_EXPORT);
     if(handle){
       exportDirHandle=handle;
       exportDirName=handle.name;
@@ -375,8 +422,8 @@ async function chooseExportFolder(){
     if(!ok){ alert('Zugriff auf den Ordner wurde nicht erlaubt.'); return; }
     exportDirHandle=handle;
     exportDirName=handle.name;
-    await idbSet(IDB_KEY,handle);
-    showToast('Zielordner "'+handle.name+'" gespeichert. Exporte werden ab jetzt direkt dort abgelegt.');
+    await idbSet(IDB_KEY_EXPORT,handle);
+    showToast('Zielordner "'+handle.name+'" gespeichert. Excel-Exporte werden ab jetzt direkt dort abgelegt.');
     renderApp();
   }catch(e){
     if(e && e.name==='AbortError') return;
@@ -384,7 +431,41 @@ async function chooseExportFolder(){
 }
 function clearExportFolder(){
   exportDirHandle=null;exportDirName='';
-  idbSet(IDB_KEY,null).catch(()=>{});
+  idbSet(IDB_KEY_EXPORT,null).catch(()=>{});
+  renderApp();
+}
+async function restoreBackupDir(){
+  if(!fsApiSupported()) return;
+  try{
+    const handle=await idbGet(IDB_KEY_BACKUP);
+    if(handle){
+      backupDirHandle=handle;
+      backupDirName=handle.name;
+      renderApp();
+    }
+  }catch(e){}
+}
+async function chooseBackupFolder(){
+  if(!fsApiSupported()){
+    alert('Diese Funktion (Zielordner wählen) wird von deinem Browser nicht unterstützt. Bitte Chrome oder Edge verwenden. Das Backup läuft in diesem Browser weiterhin als normaler Download.');
+    return;
+  }
+  try{
+    const handle=await window.showDirectoryPicker({mode:'readwrite'});
+    const ok=await verifyDirPermission(handle,true);
+    if(!ok){ alert('Zugriff auf den Ordner wurde nicht erlaubt.'); return; }
+    backupDirHandle=handle;
+    backupDirName=handle.name;
+    await idbSet(IDB_KEY_BACKUP,handle);
+    showToast('Backup-Zielordner "'+handle.name+'" gespeichert. JSON-Backups werden ab jetzt direkt dort abgelegt.');
+    renderApp();
+  }catch(e){
+    if(e && e.name==='AbortError') return;
+  }
+}
+function clearBackupFolder(){
+  backupDirHandle=null;backupDirName='';
+  idbSet(IDB_KEY_BACKUP,null).catch(()=>{});
   renderApp();
 }
 async function writeWorkbookToExportDir(wb,filename){
@@ -400,6 +481,21 @@ async function writeWorkbookToExportDir(wb,filename){
     return true;
   }catch(e){
     showToast('Speichern in "'+exportDirName+'" fehlgeschlagen: '+(e&&e.message?e.message:e));
+    return false;
+  }
+}
+async function writeTextToBackupDir(text,filename){
+  if(!backupDirHandle) return false;
+  const ok=await verifyDirPermission(backupDirHandle,true);
+  if(!ok){ showToast('Zugriff auf den Backup-Zielordner fehlt. Bitte Ordner erneut wählen.'); return false; }
+  try{
+    const fileHandle=await backupDirHandle.getFileHandle(filename,{create:true});
+    const writable=await fileHandle.createWritable();
+    await writable.write(text);
+    await writable.close();
+    return true;
+  }catch(e){
+    showToast('Speichern in "'+backupDirName+'" fehlgeschlagen: '+(e&&e.message?e.message:e));
     return false;
   }
 }
@@ -566,7 +662,7 @@ function locBadge(name){
   return `<span class="zb-badge" style="background:${c}14;color:${c};border-color:${c}33">${esc(name)}</span>`;
 }
 function typeBadge(name,hours,ref){
-  const c=TYPE_COLORS[name]||'#64748B';
+  const c=typeColor(name);
   const refPart = ref ? ` (${esc(ref)})` : '';
   return `<span class="zb-badge" style="background:${c}14;color:${c};border-color:${c}33">${esc(name)}${refPart}${hours!=null?` · ${hours}h`:''}</span>`;
 }
@@ -663,6 +759,7 @@ function submitEntry(){
   const hours=calcHours(arrival,departure,pause);
   if(hours<=0){formError='Die berechnete Arbeitszeit ist 0 Std. Bitte Zeiten prüfen.';renderApp();return;}
   formError='';
+  const wasNewDay=!entries.some(e=>e.date===date);
   const cleanSplits=splits.filter(s=>s.type&&Number(s.hours)>0);
   const existing=entries.find(e=>e.date===date && e.id!==editingId);
   const targetId=editingId||(existing?existing.id:genId());
@@ -673,6 +770,9 @@ function submitEntry(){
   resetForm();renderApp();
   if(toDate(date).getDay()===5){
     exportWeek(weekKeyOf(date));
+  }
+  if(wasNewDay && backupDirHandle){
+    exportBackup();
   }
 }
 function startEdit(id){
@@ -702,17 +802,29 @@ function addSplit(){
   form.splits.push({id:genId(),type,ref,hours:Math.round(hours*100)/100});
   renderApp();
 }
+function editSplitField(id,field,value){
+  const s=form.splits.find(x=>x.id===id);if(!s) return;
+  if(field==='hours'){ const h=parseFloat(value); s.hours=isNaN(h)?0:Math.round(h*100)/100; }
+  else if(field==='type'){ s.type=value; }
+  else if(field==='ref'){ s.ref=value.trim(); }
+  renderApp();
+}
 function deleteSplit(id){
   syncFormFromDOM();
   form.splits=form.splits.filter(s=>s.id!==id);
   renderApp();
 }
-function exportBackup(){
+async function exportBackup(){
   const data=JSON.stringify({entries,exportedAt:new Date().toISOString()},null,2);
+  const filename=`zeiterfassung_backup_${todayISO()}.json`;
+  if(backupDirHandle){
+    const ok=await writeTextToBackupDir(data,filename);
+    if(ok){ showToast('"'+filename+'" wurde in "'+backupDirName+'" gespeichert.'); return; }
+  }
   const blob=new Blob([data],{type:'application/json'});
   const url=URL.createObjectURL(blob);
   const a=document.createElement('a');
-  a.href=url;a.download=`zeiterfassung_backup_${todayISO()}.json`;
+  a.href=url;a.download=filename;
   document.body.appendChild(a);a.click();document.body.removeChild(a);
   URL.revokeObjectURL(url);
 }
@@ -774,7 +886,7 @@ const WIDGET_CATALOG=[
   {type:'kpi',metric:'streak',label:'Serie in Folge',desc:'Aufeinanderfolgende erfasste Tage bis heute. 🔥',category:'Kennzahlen',defaultSize:'s'},
   {type:'kpi',metric:'delta',label:'Vergleich zur Vorperiode',desc:'Veränderung gegenüber dem vorherigen, gleich langen Zeitraum.',category:'Kennzahlen',defaultSize:'s'},
   {type:'goal-gauge',label:'Ziel-Fortschritt',desc:'Sollstunden vs. erfasste Stunden als Tacho-Anzeige.',category:'Ziele & Saldo',defaultSize:'m'},
-  {type:'overtime-balance',label:'Gleitzeit-Saldo',desc:'Kumulierte Über-/Minusstunden über alle Einträge.',category:'Ziele & Saldo',defaultSize:'s'},
+  {type:'overtime-balance',label:'Gleitzeit-Saldo',desc:'Kumulierte Über-/Minusstunden inkl. optionalem Startsaldo aus der Zeit vor diesem Tool, in Std. und Tagen.',category:'Ziele & Saldo',defaultSize:'s'},
   {type:'donut-location',label:'Standortverteilung',desc:'Stundenanteile je Standort als Donut.',category:'Verteilungen',defaultSize:'m'},
   {type:'donut-type',label:'Buchungstyp-Verteilung',desc:'Stundenanteile je Buchungstyp als Donut.',category:'Verteilungen',defaultSize:'m'},
   {type:'weekday-dist',label:'Wochentag-Muster',desc:'Ø Stunden je Wochentag – zeigt deinen Rhythmus.',category:'Verteilungen',defaultSize:'m'},
@@ -803,7 +915,7 @@ function defaultWidgets(){
     {id:genId(),type:'kpi',size:'s',settings:{metric:'streak'}},
     {id:genId(),type:'kpi',size:'s',settings:{metric:'delta',range:'week'}},
     {id:genId(),type:'goal-gauge',size:'m',settings:{range:'week',target:42.5}},
-    {id:genId(),type:'overtime-balance',size:'s',settings:{targetPerDay:8.4}},
+    {id:genId(),type:'overtime-balance',size:'s',settings:{targetPerDay:8.4,startingBalance:0}},
     {id:genId(),type:'donut-location',size:'m',settings:{range:'week'}},
     {id:genId(),type:'donut-type',size:'m',settings:{range:'week'}},
     {id:genId(),type:'trend-bars',size:'l',settings:{range:'week'}},
@@ -830,7 +942,7 @@ function addWidgetFromCatalog(idx){
   const settings={};
   if(c.type==='kpi'){ settings.metric=c.metric; if(c.metric!=='streak') settings.range='week'; }
   else if(c.type==='goal-gauge'){ settings.range='week'; settings.target=42.5; }
-  else if(c.type==='overtime-balance'){ settings.targetPerDay=8.4; }
+  else if(c.type==='overtime-balance'){ settings.targetPerDay=8.4; settings.startingBalance=0; }
   else if(c.type==='heatmap'){ settings.weeks=18; }
   else if(c.type==='recent-table'){ settings.count=8; }
   else{ settings.range=defaultRangeFor(c.type); }
@@ -905,17 +1017,25 @@ function renderGoalGaugeBody(instance){
 }
 function renderOvertimeBalanceBody(instance){
   const targetPerDay=Number(instance.settings.targetPerDay)||8.4;
+  const startingBalance=Number(instance.settings.startingBalance)||0;
   const totalAll=Math.round(entries.reduce((s,e)=>s+e.hours,0)*100)/100;
   const daysAll=entries.length;
   const expected=Math.round(daysAll*targetPerDay*100)/100;
-  const saldo=Math.round((totalAll-expected)*100)/100;
+  const saldoApp=Math.round((totalAll-expected)*100)/100;
+  const saldo=Math.round((saldoApp+startingBalance)*100)/100;
+  const saldoDays=targetPerDay>0?Math.round((saldo/targetPerDay)*100)/100:0;
   const color=saldo>=0?'var(--success)':'var(--danger)';
   return `<div class="zb-kpi-body" style="--kpi-c:${color}">
     <div class="zb-kpi-value">${saldo>=0?'+':''}${saldo} h</div>
-    <div class="zb-kpi-sub">bei ${targetPerDay} Std./Tag Soll · ${daysAll} Tage insgesamt erfasst</div>
+    <div class="zb-kpi-sub">≈ ${saldoDays>=0?'+':''}${saldoDays} Tage · bei ${targetPerDay} Std./Tag Soll</div>
+    <div class="zb-kpi-sub" style="margin-top:2px">Start: ${startingBalance>=0?'+':''}${startingBalance} h · seit Tool-Nutzung: ${saldoApp>=0?'+':''}${saldoApp} h (${daysAll} Tage erfasst)</div>
     <div class="zb-inline-setting">
       <label for="tpd-${instance.id}">Soll/Tag</label>
       <input id="tpd-${instance.id}" type="number" step="0.1" min="0" class="zb-input zb-mini-input" value="${targetPerDay}" data-action="set-widget-setting" data-widget-id="${instance.id}" data-key="targetPerDay">
+    </div>
+    <div class="zb-inline-setting">
+      <label for="sb-${instance.id}">Startsaldo (Std.)</label>
+      <input id="sb-${instance.id}" type="number" step="0.1" class="zb-input zb-mini-input" value="${startingBalance}" data-action="set-widget-setting" data-widget-id="${instance.id}" data-key="startingBalance">
     </div>
   </div>`;
 }
@@ -1004,7 +1124,7 @@ function renderWidgetBody(instance){
     case 'goal-gauge': return renderGoalGaugeBody(instance);
     case 'overtime-balance': return renderOvertimeBalanceBody(instance);
     case 'donut-location': return renderDonutBlock(aggregateByLocation(entriesInRange(range)),LOCATION_COLORS);
-    case 'donut-type': {const d=aggregateByType(entriesInRange(range));return d.length?renderDonutBlock(d,TYPE_COLORS):`<div class="zb-chart-empty">Noch keine Aufteilung erfasst.</div>`;}
+    case 'donut-type': {const d=aggregateByType(entriesInRange(range));return d.length?renderDonutBlock(d,typeColorMap()):`<div class="zb-chart-empty">Noch keine Aufteilung erfasst.</div>`;}
     case 'weekday-dist': return renderWeekdayDistBody(instance);
     case 'punctuality': return renderPunctualityBody(instance);
     case 'location-leaderboard': return renderLeaderboardBody(instance);
@@ -1094,6 +1214,10 @@ function onAppClick(e){
   else if(a==='go-erfassen'){activeTab='erfassen';renderApp();}
   else if(a==='choose-folder'){chooseExportFolder();}
   else if(a==='clear-folder'){clearExportFolder();}
+  else if(a==='choose-backup-folder'){chooseBackupFolder();}
+  else if(a==='clear-backup-folder'){clearBackupFolder();}
+  else if(a==='add-booking-type'){addBookingType();}
+  else if(a==='delete-booking-type'){deleteBookingType(Number(el.dataset.index));}
   else if(a==='toggle-edit-mode'){dashboardEditMode=!dashboardEditMode;renderApp();}
   else if(a==='reset-dashboard'){ if(!confirm('Dashboard auf das Standardlayout zurücksetzen? Eigene Widgets und Anordnung gehen verloren.')) return; widgets=defaultWidgets(); saveWidgets(); renderApp(); }
   else if(a==='add-widget'){ addWidgetFromCatalog(Number(el.dataset.catalogIndex)); }
@@ -1115,34 +1239,34 @@ function onAppChange(e){
   if(a==='select-week'){selectedWeek=el.value;renderApp();}
   else if(a==='set-widget-range'){ setWidgetSetting(el.dataset.widgetId,'range',el.value); }
   else if(a==='set-widget-setting'){ setWidgetSetting(el.dataset.widgetId, el.dataset.key, el.value); }
+  else if(a==='edit-split'){ editSplitField(el.dataset.id, el.dataset.field, el.value); }
+  else if(a==='rename-booking-type'){ renameBookingType(Number(el.dataset.index), el.value); }
 }
 function renderHeader(){
-  const tabs=[{id:'dashboard',label:'Dashboard'},{id:'erfassen',label:'Erfassen'},{id:'wochen',label:'Wochen'}];
+  const tabs=[{id:'dashboard',label:'Dashboard'},{id:'erfassen',label:'Erfassen'},{id:'wochen',label:'Wochen'},{id:'einstellungen',label:'Einstellungen'}];
   return `<header class="zb-header">
     <div class="zb-title">Zeiterfassung</div>
     <nav class="zb-nav">${tabs.map(t=>`<button class="zb-nav-btn ${activeTab===t.id?'active':''}" data-action="set-tab" data-tab="${t.id}">${t.label}</button>`).join('')}</nav>
-    <div class="zb-header-right">
-      <span class="zb-save-status" id="save-status">${saving?'Speichert…':'Gespeichert'}</span>
-      <button class="zb-iconbtn" data-action="toggle-theme" title="Darkmode umschalten">${icon(theme==='dark'?'sun':'moon',16)}</button>
-      <button class="zb-btn-ghost sm" data-action="export-backup">${icon('download',13)} Backup</button>
-      <label class="zb-btn-ghost sm" style="cursor:pointer;margin:0">
-        Wiederherstellen
-        <input type="file" accept="application/json" style="display:none" onchange="importBackup(this.files[0]);this.value=''">
-      </label>
-    </div>
   </header>`;
 }
-function renderFolderCard(){
+function renderFolderRow(label,dirName,chooseAction,clearAction){
   const supported=fsApiSupported();
-  return `<section class="zb-card zb-folder-card">
+  return `<div class="zb-folder-row">
     <div class="zb-folder-info">
-      <span class="zb-folder-label">Export-Zielordner (Freitags-Export & manueller Excel-Export)</span>
-      <span class="zb-folder-path ${exportDirName?'':'unset'}">${exportDirName?('📁 '+esc(exportDirName)):(supported?'Kein Ordner gewählt — Export lädt normal herunter':'Vom Browser nicht unterstützt — Export lädt normal herunter')}</span>
+      <span class="zb-folder-label">${esc(label)}</span>
+      <span class="zb-folder-path ${dirName?'':'unset'}">${dirName?('📁 '+esc(dirName)):(supported?'Kein Ordner gewählt — lädt normal herunter':'Vom Browser nicht unterstützt — lädt normal herunter')}</span>
     </div>
     <div class="zb-folder-actions">
-      ${supported?`<button class="zb-btn-ghost sm" data-action="choose-folder">${icon('folder',13)} ${exportDirName?'Ordner ändern':'Zielordner wählen'}</button>`:''}
-      ${exportDirName?`<button class="zb-btn-ghost sm danger" data-action="clear-folder">Zurücksetzen</button>`:''}
+      ${supported?`<button class="zb-btn-ghost sm" data-action="${chooseAction}">${icon('folder',13)} ${dirName?'Ordner ändern':'Zielordner wählen'}</button>`:''}
+      ${dirName?`<button class="zb-btn-ghost sm danger" data-action="${clearAction}">Zurücksetzen</button>`:''}
     </div>
+  </div>`;
+}
+function renderFolderCard(){
+  return `<section class="zb-card zb-folder-card">
+    ${renderFolderRow('Excel-Zielordner (Freitags-Export & manueller Export)', exportDirName, 'choose-folder', 'clear-folder')}
+    <div class="zb-folder-sep"></div>
+    ${renderFolderRow('JSON-Backup-Zielordner (Freitags-Backup & manuelles Backup)', backupDirName, 'choose-backup-folder', 'clear-backup-folder')}
   </section>`;
 }
 function renderLocationPicker(selected){
@@ -1196,17 +1320,18 @@ function renderErfassen(){
       <label class="zb-label">Aufteilung nach Buchungstyp</label>
       <div class="zb-split-list">
         ${form.splits.length===0?`<div class="zb-hint" style="margin:0 0 8px">Noch keine Aufteilung hinzugefügt.</div>`:form.splits.map(s=>`
-          <div class="zb-split-row">
-            <span class="name">${typeBadge(s.type,null,s.ref)}</span>
-            <span class="val">
-              <span class="num strong">${s.hours} h</span>
-              <button class="zb-iconbtn danger" data-action="delete-split" data-id="${s.id}">${icon('trash',13)}</button>
-            </span>
+          <div class="zb-split-edit-row">
+            <select class="zb-select" data-action="edit-split" data-id="${s.id}" data-field="type">
+              ${typeNames().map(t=>`<option value="${esc(t)}" ${t===s.type?'selected':''}>${esc(t)}</option>`).join('')}
+            </select>
+            <input type="text" class="zb-input" placeholder="Zusatz" value="${esc(s.ref||'')}" data-action="edit-split" data-id="${s.id}" data-field="ref">
+            <input type="number" min="0" step="0.25" class="zb-input zb-split-hours-input" placeholder="Std." value="${s.hours}" data-action="edit-split" data-id="${s.id}" data-field="hours">
+            <button class="zb-iconbtn danger" data-action="delete-split" data-id="${s.id}" title="Entfernen">${icon('trash',13)}</button>
           </div>`).join('')}
       </div>
       <div class="zb-split-add">
         <select id="split-type" class="zb-select">
-          ${TYPES.map(t=>`<option value="${t}">${t}</option>`).join('')}
+          ${typeNames().map(t=>`<option value="${esc(t)}">${esc(t)}</option>`).join('')}
         </select>
         <input id="split-ref" type="text" class="zb-input" style="max-width:130px" placeholder="Zusatz">
         <input id="split-hours" type="number" min="0" step="0.25" class="zb-input" placeholder="Std.">
@@ -1246,7 +1371,6 @@ function renderWochen(){
   const total=Math.round(weekEntries.reduce((s,e)=>s+e.hours,0)*100)/100;
   const [y,w]=selectedWeek.split('-W');
   return `
-  ${renderFolderCard()}
   <div class="zb-week-toolbar">
     <div class="zb-week-nav">
       <button class="zb-iconbtn" data-action="week-prev">${icon('chevronLeft',16)}</button>
@@ -1361,6 +1485,49 @@ function renderTrendBars(data){
     </div>`).join('')}</div>`;
 }
 
+function renderBookingTypesSettings(){
+  return `<section class="zb-card zb-form-card">
+    <div class="zb-form-head"><span>Buchungstypen verwalten</span></div>
+    <div class="zb-hint" style="margin:0 0 14px">Diese Typen stehen bei der Aufteilung eines Tageseintrags zur Auswahl (z. B. CR, IC, Ferien). Umbenennen oder Löschen wirkt sich nicht auf bereits erfasste Einträge aus — diese behalten ihren ursprünglichen Buchungstyp.</div>
+    <div class="zb-split-list">
+      ${BOOKING_TYPES.map((t,idx)=>`
+        <div class="zb-split-edit-row">
+          <span style="width:12px;height:12px;border-radius:50%;flex:none;background:${t.color}"></span>
+          <input type="text" class="zb-input" style="flex:1 1 160px" value="${esc(t.name)}" data-action="rename-booking-type" data-index="${idx}">
+          <button class="zb-iconbtn danger" data-action="delete-booking-type" data-index="${idx}" title="Löschen">${icon('trash',13)}</button>
+        </div>`).join('')}
+      ${BOOKING_TYPES.length===0?`<div class="zb-hint" style="margin:0 0 8px">Keine Buchungstypen vorhanden.</div>`:''}
+    </div>
+    <div class="zb-split-add">
+      <input id="new-type-name" type="text" class="zb-input" style="max-width:220px" placeholder="Neuer Buchungstyp">
+      <button class="zb-btn-ghost sm" data-action="add-booking-type">${icon('plus',13)} Hinzufügen</button>
+    </div>
+  </section>`;
+}
+function renderEinstellungen(){
+  return `
+  <div class="zb-section-head"><span>Ordner</span></div>
+  ${renderFolderCard()}
+  <div class="zb-section-head"><span>Daten</span></div>
+  <section class="zb-card zb-form-card">
+    <div class="zb-form-head"><span>Backup &amp; Wiederherstellung</span></div>
+    <div class="zb-hint" style="margin:0 0 14px">Sichert alle erfassten Einträge als JSON-Datei. Ist oben ein Backup-Zielordner gewählt, wird direkt dorthin gespeichert — sonst als normaler Download. Über "Wiederherstellen" lässt sich eine solche JSON-Datei jederzeit wieder einspielen (keine Excel-Dateien).</div>
+    <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center">
+      <button class="zb-btn-primary" data-action="export-backup">${icon('download',15)} Backup jetzt erstellen</button>
+      <label class="zb-btn-ghost" style="cursor:pointer;margin:0">
+        ${icon('folder',15)} Wiederherstellen
+        <input type="file" accept="application/json" style="display:none" onchange="importBackup(this.files[0]);this.value=''">
+      </label>
+    </div>
+  </section>
+  <div class="zb-section-head"><span>Darstellung</span></div>
+  <section class="zb-card zb-form-card">
+    <div class="zb-form-head"><span>Darkmode</span></div>
+    <button class="zb-btn-ghost" data-action="toggle-theme">${icon(theme==='dark'?'sun':'moon',15)} ${theme==='dark'?'Zu Light Mode wechseln':'Zu Dark Mode wechseln'}</button>
+  </section>
+  <div class="zb-section-head"><span>Buchungstypen</span></div>
+  ${renderBookingTypesSettings()}`;
+}
 function renderDashboard(){
   if(entries.length===0) return `
     <section class="zb-card zb-empty-big">
@@ -1377,13 +1544,14 @@ function renderDashboard(){
 function renderApp(){
   const app=document.getElementById('app');
   app.innerHTML = renderHeader()
-    + `<main>${activeTab==='dashboard'?renderDashboard():activeTab==='erfassen'?renderErfassen():renderWochen()}</main>`;
+    + `<main>${activeTab==='dashboard'?renderDashboard():activeTab==='erfassen'?renderErfassen():activeTab==='wochen'?renderWochen():renderEinstellungen()}</main>`;
 }
 
 function init(){
   loadTheme();
   load();
   loadWidgets();
+  loadBookingTypes();
   selectedWeek=weekKeyOf(todayISO());
   calendarViewWeek=weekKeyOf(form.date);
   const app=document.getElementById('app');
@@ -1391,6 +1559,7 @@ function init(){
   app.addEventListener('change', onAppChange);
   renderApp();
   restoreExportDir();
+  restoreBackupDir();
 }
 init();
 </script>
