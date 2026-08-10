@@ -35,10 +35,11 @@
 body{margin:0;background:var(--bg);font-family:'Inter',ui-sans-serif,system-ui,sans-serif;color:var(--text);-webkit-font-smoothing:antialiased;}
 #app{display:flex;flex-direction:column;min-height:100vh;max-width:1180px;margin:0 auto;}
 main{flex:1;padding:26px 28px 48px;}
+.zb-footer{padding:8px 28px 24px;text-align:center;font-size:11px;color:var(--text-faint);}
 .zb-header{display:flex;align-items:center;justify-content:space-between;gap:14px;flex-wrap:wrap;padding:14px 28px;background:var(--header-bg);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);border-bottom:1px solid var(--border);position:sticky;top:0;z-index:5;}
 .zb-title{font-size:16px;font-weight:800;color:var(--text);letter-spacing:-.01em;}
-.zb-nav{display:flex;gap:2px;background:var(--bg);padding:3px;border-radius:10px;}
-.zb-nav-btn{background:none;border:none;padding:7px 16px;font-size:13.5px;font-weight:600;color:var(--text-muted);cursor:pointer;border-radius:8px;transition:all .15s ease;font-family:inherit;}
+.zb-nav{display:flex;gap:2px;background:var(--bg);padding:3px;border-radius:10px;overflow-x:auto;-webkit-overflow-scrolling:touch;}
+.zb-nav-btn{background:none;border:none;padding:7px 16px;font-size:13.5px;font-weight:600;color:var(--text-muted);cursor:pointer;border-radius:8px;transition:all .15s ease;font-family:inherit;white-space:nowrap;}
 .zb-nav-btn:hover{color:var(--text);}
 .zb-nav-btn.active{background:var(--surface);color:var(--accent);box-shadow:var(--shadow-sm);}
 .zb-header-right{display:flex;align-items:center;gap:10px;}
@@ -162,6 +163,9 @@ table.zb-table{border-collapse:collapse;width:100%;}
 .zb-folder-path.unset{color:var(--text-faint);font-weight:500;}
 .zb-folder-actions{display:flex;gap:8px;flex-wrap:wrap;}
 .zb-toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:var(--text);color:var(--surface);padding:10px 18px;border-radius:9px;font-size:13px;font-weight:600;box-shadow:var(--shadow-md);z-index:50;max-width:90vw;text-align:center;}
+.zb-timer-display{font-size:52px;font-weight:800;font-variant-numeric:tabular-nums;letter-spacing:.02em;color:var(--accent);}
+.zb-timer-round-preview{margin-top:8px;font-size:13px;color:var(--text-muted);font-weight:600;}
+.zb-timer-round-preview strong{color:var(--accent);}
 
 /* ---------- Dashboard: individuelle Widgets ---------- */
 .zb-dash-toolbar{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:18px;}
@@ -314,6 +318,8 @@ let exportDirHandle=null;
 let exportDirName='';
 let backupDirHandle=null;
 let backupDirName='';
+let activeTimerState=null;
+let customTimerPresets=[];
 let toastTimer=null;
 
 /* Dashboard-Widget-Zustand */
@@ -355,6 +361,134 @@ function showToast(msg,ms){
   el.style.display='block';
   if(toastTimer) clearTimeout(toastTimer);
   toastTimer=setTimeout(()=>{el.style.display='none';},ms);
+}
+
+/* ---------- Timer ---------- */
+function loadActiveTimer(){
+  try{
+    const raw=localStorage.getItem('zb-active-timer-v1');
+    if(raw) activeTimerState=JSON.parse(raw);
+  }catch(e){}
+}
+function saveActiveTimerState(){
+  try{
+    if(activeTimerState) localStorage.setItem('zb-active-timer-v1', JSON.stringify(activeTimerState));
+    else localStorage.removeItem('zb-active-timer-v1');
+  }catch(e){}
+}
+function loadCustomTimers(){
+  try{
+    const raw=localStorage.getItem('zb-custom-timers-v1');
+    if(raw){ const parsed=JSON.parse(raw); if(Array.isArray(parsed)) customTimerPresets=parsed; }
+  }catch(e){}
+}
+function saveCustomTimers(){
+  try{ localStorage.setItem('zb-custom-timers-v1', JSON.stringify(customTimerPresets)); }catch(e){}
+}
+function getElapsedMs(t){
+  if(!t) return 0;
+  const runningPart=(t.status==='running' && t.startedAt)?(Date.now()-t.startedAt):0;
+  return Math.max(0,(t.accumulatedMs||0)+runningPart);
+}
+function formatElapsed(ms){
+  const totalSec=Math.floor(ms/1000);
+  const h=Math.floor(totalSec/3600), m=Math.floor((totalSec%3600)/60), s=totalSec%60;
+  return pad2(h)+':'+pad2(m)+':'+pad2(s);
+}
+function updateTimerDisplay(){
+  const el=document.getElementById('timer-elapsed-display');
+  if(el && activeTimerState) el.textContent=formatElapsed(getElapsedMs(activeTimerState));
+}
+function startTimer(type,ref){
+  if(activeTimerState){ alert('Es läuft bereits ein Timer. Bitte zuerst stoppen und speichern oder verwerfen.'); return; }
+  if(!type){ alert('Bitte einen Buchungstyp auswählen.'); return; }
+  const now=Date.now();
+  activeTimerState={type,ref:(ref||'').trim(),status:'running',accumulatedMs:0,startedAt:now,firstStartedAt:now};
+  saveActiveTimerState();
+  renderApp();
+}
+function stopTimer(){
+  if(!activeTimerState || activeTimerState.status!=='running') return;
+  activeTimerState.accumulatedMs=(activeTimerState.accumulatedMs||0)+Math.max(0,Date.now()-activeTimerState.startedAt);
+  activeTimerState.startedAt=null;
+  activeTimerState.status='stopped';
+  saveActiveTimerState();
+  renderApp();
+}
+function resumeTimer(){
+  if(!activeTimerState || activeTimerState.status!=='stopped') return;
+  activeTimerState.status='running';
+  activeTimerState.startedAt=Date.now();
+  saveActiveTimerState();
+  renderApp();
+}
+function clearActiveTimer(){
+  activeTimerState=null;
+  saveActiveTimerState();
+}
+function discardTimer(){
+  if(activeTimerState){
+    const elapsedSec=Math.floor(getElapsedMs(activeTimerState)/1000);
+    if(elapsedSec>60 && !confirm('Timer wirklich verwerfen? Die bisher erfasste Zeit ('+formatElapsed(getElapsedMs(activeTimerState))+') geht dabei verloren.')) return;
+  }
+  clearActiveTimer();
+  renderApp();
+}
+function editActiveTimerField(field,value){
+  if(!activeTimerState || activeTimerState.status!=='stopped') return;
+  activeTimerState[field]=field==='ref'?value.trim():value;
+  saveActiveTimerState();
+  renderApp();
+}
+function saveTimerToToday(){
+  if(!activeTimerState || activeTimerState.status!=='stopped') return;
+  const elapsedMs=getElapsedMs(activeTimerState);
+  const hours=Math.round((elapsedMs/3600000)*10)/10;
+  const type=activeTimerState.type, ref=activeTimerState.ref;
+  if(hours<=0){
+    if(confirm('Die erfasste Zeit ist praktisch 0 Std. Timer trotzdem verwerfen?')) discardTimer();
+    return;
+  }
+  const todayIso=todayISO();
+  let entry=entries.find(e=>e.date===todayIso);
+  const wasNewDay=!entry;
+  if(!entry){
+    const startD=new Date(activeTimerState.firstStartedAt);
+    const nowD=new Date();
+    entry={
+      id:genId(),date:todayIso,
+      location: entries.length?entries[entries.length-1].location:LOCATIONS[0],
+      arrival: pad2(startD.getHours())+':'+pad2(startD.getMinutes()),
+      departure: pad2(nowD.getHours())+':'+pad2(nowD.getMinutes()),
+      pause:0,remark:'',hours,splits:[]
+    };
+    entries.push(entry);
+  }
+  entry.splits.push({id:genId(),type,ref,hours});
+  save();
+  clearActiveTimer();
+  showToast(hours+' h auf "'+type+(ref?' · '+ref:'')+'" gebucht ('+formatDateDE(todayIso)+').');
+  if(wasNewDay && backupDirHandle){ exportBackup(); }
+  renderApp();
+}
+function addCustomTimerPreset(){
+  const typeEl=document.getElementById('ct-new-type');
+  const refEl=document.getElementById('ct-new-ref');
+  const type=typeEl?typeEl.value:'';
+  const ref=refEl?refEl.value.trim():'';
+  if(!type) return;
+  customTimerPresets.push({id:genId(),type,ref});
+  saveCustomTimers();
+  renderApp();
+}
+function deleteCustomTimerPreset(id){
+  customTimerPresets=customTimerPresets.filter(p=>p.id!==id);
+  saveCustomTimers();
+  renderApp();
+}
+function startPresetTimer(id){
+  const p=customTimerPresets.find(x=>x.id===id);
+  if(p) startTimer(p.type,p.ref);
 }
 
 /* ---------- Zielordner: IndexedDB-Speicher für den FileSystemDirectoryHandle ---------- */
@@ -503,6 +637,7 @@ async function writeTextToBackupDir(text,filename){
 const WEEKDAYS=['Montag','Dienstag','Mittwoch','Donnerstag','Freitag','Samstag','Sonntag'];
 const WEEKDAYS_SHORT=['Mo','Di','Mi','Do','Fr','Sa','So'];
 function todayISO(){const d=new Date();return new Date(d.getTime()-d.getTimezoneOffset()*60000).toISOString().slice(0,10);}
+function pad2(n){return String(n).padStart(2,'0');}
 function toDate(iso){return new Date(iso+'T00:00:00');}
 function formatDateDE(iso){const d=toDate(iso);return `${String(d.getDate()).padStart(2,'0')}. ${String(d.getMonth()+1).padStart(2,'0')}. ${d.getFullYear()}`;}
 function weekdayName(iso){return WEEKDAYS[(toDate(iso).getDay()+6)%7];}
@@ -644,6 +779,7 @@ function icon(name,size){
     plus:'<path d="M12 5v14M5 12h14"/>',
     x:'<path d="M18 6 6 18M6 6l12 12"/>',
     check:'<path d="M20 6 9 17l-5-5"/>',
+    play:'<path d="M6 3l16 9-16 9V3z" fill="currentColor" stroke="none"/>',
     chevronLeft:'<path d="M15 18l-6-6 6-6"/>',
     chevronRight:'<path d="M9 18l6-6-6-6"/>',
     arrowUp:'<path d="M12 19V6M6 12l6-6 6 6"/>',
@@ -1218,6 +1354,14 @@ function onAppClick(e){
   else if(a==='clear-backup-folder'){clearBackupFolder();}
   else if(a==='add-booking-type'){addBookingType();}
   else if(a==='delete-booking-type'){deleteBookingType(Number(el.dataset.index));}
+  else if(a==='start-timer'){ const t=document.getElementById('timer-type'); const r=document.getElementById('timer-ref'); startTimer(t?t.value:'', r?r.value:''); }
+  else if(a==='stop-timer'){stopTimer();}
+  else if(a==='resume-timer'){resumeTimer();}
+  else if(a==='save-timer'){saveTimerToToday();}
+  else if(a==='discard-timer'){discardTimer();}
+  else if(a==='start-preset-timer'){startPresetTimer(el.dataset.id);}
+  else if(a==='delete-preset-timer'){deleteCustomTimerPreset(el.dataset.id);}
+  else if(a==='add-custom-timer'){addCustomTimerPreset();}
   else if(a==='toggle-edit-mode'){dashboardEditMode=!dashboardEditMode;renderApp();}
   else if(a==='reset-dashboard'){ if(!confirm('Dashboard auf das Standardlayout zurücksetzen? Eigene Widgets und Anordnung gehen verloren.')) return; widgets=defaultWidgets(); saveWidgets(); renderApp(); }
   else if(a==='add-widget'){ addWidgetFromCatalog(Number(el.dataset.catalogIndex)); }
@@ -1241,9 +1385,10 @@ function onAppChange(e){
   else if(a==='set-widget-setting'){ setWidgetSetting(el.dataset.widgetId, el.dataset.key, el.value); }
   else if(a==='edit-split'){ editSplitField(el.dataset.id, el.dataset.field, el.value); }
   else if(a==='rename-booking-type'){ renameBookingType(Number(el.dataset.index), el.value); }
+  else if(a==='edit-timer'){ editActiveTimerField(el.dataset.field, el.value); }
 }
 function renderHeader(){
-  const tabs=[{id:'dashboard',label:'Dashboard'},{id:'erfassen',label:'Erfassen'},{id:'wochen',label:'Wochen'},{id:'einstellungen',label:'Einstellungen'}];
+  const tabs=[{id:'dashboard',label:'Dashboard'},{id:'erfassen',label:'Erfassen'},{id:'timer',label:'Timer'},{id:'wochen',label:'Wochen'},{id:'einstellungen',label:'Einstellungen'}];
   return `<header class="zb-header">
     <div class="zb-title">Zeiterfassung</div>
     <nav class="zb-nav">${tabs.map(t=>`<button class="zb-nav-btn ${activeTab===t.id?'active':''}" data-action="set-tab" data-tab="${t.id}">${t.label}</button>`).join('')}</nav>
@@ -1528,6 +1673,80 @@ function renderEinstellungen(){
   <div class="zb-section-head"><span>Buchungstypen</span></div>
   ${renderBookingTypesSettings()}`;
 }
+function renderTimerMainCard(){
+  if(!activeTimerState){
+    return `<section class="zb-card zb-form-card">
+      <div class="zb-form-head"><span>Timer starten</span></div>
+      <div class="zb-grid2">
+        <div>
+          <label class="zb-label">Buchungstyp</label>
+          <select id="timer-type" class="zb-select">${typeNames().map(t=>`<option value="${esc(t)}">${esc(t)}</option>`).join('')}</select>
+        </div>
+        <div>
+          <label class="zb-label">Betreff (optional)</label>
+          <input id="timer-ref" type="text" class="zb-input" placeholder="z. B. Ticket-Nr.">
+        </div>
+      </div>
+      <button class="zb-btn-primary" data-action="start-timer">${icon('plus',15)} Timer starten</button>
+    </section>`;
+  }
+  const running=activeTimerState.status==='running';
+  const elapsedMs=getElapsedMs(activeTimerState);
+  const elapsed=formatElapsed(elapsedMs);
+  const roundedHours=Math.round((elapsedMs/3600000)*10)/10;
+  return `<section class="zb-card zb-form-card">
+    <div class="zb-form-head"><span>${running?'Timer läuft':'Timer gestoppt — bereit zum Speichern'}</span></div>
+    <div style="text-align:center;padding:6px 0 22px">
+      <div id="timer-elapsed-display" class="zb-timer-display">${elapsed}</div>
+      ${running?`<div class="zb-hint" style="margin-top:6px">Kleinste Buchungseinheit: 0.1 Std. (6 Min.), auf- oder abgerundet auf das nächste 6er-Vielfache.</div>`
+               :`<div class="zb-timer-round-preview">wird gebucht als <strong>${roundedHours} Std.</strong> auf <strong>${esc(activeTimerState.type)}${activeTimerState.ref?' · '+esc(activeTimerState.ref):''}</strong></div>`}
+    </div>
+    <div class="zb-grid2">
+      <div>
+        <label class="zb-label">Buchungstyp</label>
+        <select class="zb-select" data-action="edit-timer" data-field="type" ${running?'disabled':''}>
+          ${typeNames().map(t=>`<option value="${esc(t)}" ${t===activeTimerState.type?'selected':''}>${esc(t)}</option>`).join('')}
+        </select>
+      </div>
+      <div>
+        <label class="zb-label">Betreff</label>
+        <input type="text" class="zb-input" value="${esc(activeTimerState.ref||'')}" data-action="edit-timer" data-field="ref" ${running?'disabled':''} placeholder="z. B. Ticket-Nr.">
+      </div>
+    </div>
+    <div style="display:flex;gap:10px;flex-wrap:wrap">
+      ${running
+        ?`<button class="zb-btn-primary" data-action="stop-timer">${icon('x',15)} Stopp</button>
+           <button class="zb-btn-ghost danger" data-action="discard-timer">Abbrechen</button>`
+        :`<button class="zb-btn-ghost" data-action="resume-timer">${icon('play',13)} Fortsetzen</button>
+           <button class="zb-btn-primary" data-action="save-timer">${icon('check',15)} Speichern</button>
+           <button class="zb-btn-ghost danger" data-action="discard-timer">Verwerfen</button>`}
+    </div>
+    <div class="zb-hint" style="margin-top:12px">Wird auf den heutigen Tag (${formatDateDE(todayISO())}) gebucht — genau wie eine manuell hinzugefügte Aufteilung. Läuft auch weiter, wenn du die Seite schliesst und später wieder öffnest. Du kannst beliebig oft stoppen und fortsetzen, bevor du speicherst.</div>
+  </section>`;
+}
+function renderCustomTimersCard(){
+  return `<section class="zb-card zb-form-card">
+    <div class="zb-form-head"><span>Custom Timer</span></div>
+    <div class="zb-hint" style="margin:0 0 14px">Vorlagen aus Buchungstyp und Betreff (z. B. CR · 38523) zum schnellen Starten, ohne jedes Mal neu auszuwählen. Löschen entfernt nur die Vorlage — bereits gebuchte Arbeitszeit bleibt erhalten.</div>
+    <div class="zb-split-list">
+      ${customTimerPresets.length===0?`<div class="zb-hint" style="margin:0 0 8px">Noch keine Custom Timer angelegt.</div>`:customTimerPresets.map(p=>`
+        <div class="zb-split-edit-row">
+          <span style="width:10px;height:10px;border-radius:50%;flex:none;background:${typeColor(p.type)}"></span>
+          <span style="flex:1 1 160px;font-weight:600">${esc(p.type)}${p.ref?` · ${esc(p.ref)}`:''}</span>
+          <button class="zb-btn-ghost sm" data-action="start-preset-timer" data-id="${p.id}" ${activeTimerState?'disabled':''}>${icon('plus',13)} Start</button>
+          <button class="zb-iconbtn danger" data-action="delete-preset-timer" data-id="${p.id}" title="Löschen">${icon('trash',13)}</button>
+        </div>`).join('')}
+    </div>
+    <div class="zb-split-add">
+      <select id="ct-new-type" class="zb-select">${typeNames().map(t=>`<option value="${esc(t)}">${esc(t)}</option>`).join('')}</select>
+      <input id="ct-new-ref" type="text" class="zb-input" placeholder="Betreff (optional)">
+      <button class="zb-btn-ghost sm" data-action="add-custom-timer">${icon('plus',13)} Hinzufügen</button>
+    </div>
+  </section>`;
+}
+function renderTimer(){
+  return renderTimerMainCard()+renderCustomTimersCard();
+}
 function renderDashboard(){
   if(entries.length===0) return `
     <section class="zb-card zb-empty-big">
@@ -1544,7 +1763,8 @@ function renderDashboard(){
 function renderApp(){
   const app=document.getElementById('app');
   app.innerHTML = renderHeader()
-    + `<main>${activeTab==='dashboard'?renderDashboard():activeTab==='erfassen'?renderErfassen():activeTab==='wochen'?renderWochen():renderEinstellungen()}</main>`;
+    + `<main>${activeTab==='dashboard'?renderDashboard():activeTab==='erfassen'?renderErfassen():activeTab==='timer'?renderTimer():activeTab==='wochen'?renderWochen():renderEinstellungen()}</main>`
+    + `<footer class="zb-footer">© ${new Date().getFullYear()} Luca Fröhlich</footer>`;
 }
 
 function init(){
@@ -1552,6 +1772,8 @@ function init(){
   load();
   loadWidgets();
   loadBookingTypes();
+  loadActiveTimer();
+  loadCustomTimers();
   selectedWeek=weekKeyOf(todayISO());
   calendarViewWeek=weekKeyOf(form.date);
   const app=document.getElementById('app');
@@ -1560,6 +1782,9 @@ function init(){
   renderApp();
   restoreExportDir();
   restoreBackupDir();
+  setInterval(()=>{
+    if(activeTimerState && activeTimerState.status==='running') updateTimerDisplay();
+  },1000);
 }
 init();
 </script>
